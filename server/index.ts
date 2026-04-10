@@ -1,0 +1,58 @@
+// CRITICAL: Load environment variables FIRST before any other imports
+import './config/env';
+
+import express from 'express';
+import mongoose from 'mongoose';
+import cors from 'cors';
+import cookieParser from 'cookie-parser';
+import morgan from 'morgan';
+import helmet from 'helmet';
+// Removed get-port
+
+import authRoutes from './routes/authRoutes';
+import documentRoutes from './routes/documentRoutes';
+import researchRoutes from './routes/researchRoutes';
+
+const app = express();
+const PORT = process.env.PORT || 5003;
+console.log("Final PORT used:", PORT);
+
+app.use(cors({
+    origin: true, // Allow all origins in development
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization']
+}));
+app.use(helmet());
+app.use(morgan('dev'));
+app.use(express.json());
+app.use(cookieParser());
+
+// Routes
+app.use('/api/auth', authRoutes);
+app.use('/api/documents', documentRoutes);
+app.use('/api/research', researchRoutes);
+
+// Basic Route
+app.get('/api/health', (_req, res) => {
+    res.json({ status: 'ok', message: 'Server is running' });
+});
+
+// MongoDB Connection
+const MONGO_URI = process.env.MONGO_URI || 'mongodb://localhost:27017/user-admin2';
+
+mongoose.connect(MONGO_URI)
+    .then(async () => {
+        console.log('Connected to MongoDB Atlas');
+        console.log('URI used:', MONGO_URI);
+
+        app.listen(PORT, () => {
+            console.log(`\n=================================================`);
+            console.log(`🚀 Server running on port ${PORT}`);
+            console.log(`👉 API URL: http://localhost:${PORT}/api`);
+            console.log(`=================================================\n`);
+        });
+    })
+    .catch((err) => {
+        console.error('MongoDB connection error:', err);
+    });

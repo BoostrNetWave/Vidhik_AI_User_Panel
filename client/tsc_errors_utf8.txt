@@ -1,0 +1,6 @@
+﻿src/components/documents/DocumentSidebar.tsx(2,23): error TS6133: 'CardDescription' is declared but its value is never read.
+src/components/documents/DocumentSidebar.tsx(2,40): error TS6133: 'CardHeader' is declared but its value is never read.
+src/components/documents/DocumentSidebar.tsx(2,52): error TS6133: 'CardTitle' is declared but its value is never read.
+src/components/documents/DocumentSidebar.tsx(13,67): error TS6133: 'title' is declared but its value is never read.
+src/pages/documents/commercial/MSAForm.tsx(5,10): error TS6133: 'Briefcase' is declared but its value is never read.
+src/pages/documents/employment/OfferLetterForm.tsx(15,96): error TS6133: 'handleSelectChange' is declared but its value is never read.

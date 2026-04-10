@@ -1,0 +1,6 @@
+﻿client/src/components/documents/DocumentSidebar.tsx(2,23): error TS6133: 'CardDescription' is declared but its value is never read.
+client/src/components/documents/DocumentSidebar.tsx(2,40): error TS6133: 'CardHeader' is declared but its value is never read.
+client/src/components/documents/DocumentSidebar.tsx(2,52): error TS6133: 'CardTitle' is declared but its value is never read.
+client/src/components/documents/DocumentSidebar.tsx(13,67): error TS6133: 'title' is declared but its value is never read.
+client/src/pages/documents/commercial/MSAForm.tsx(5,10): error TS6133: 'Briefcase' is declared but its value is never read.
+client/src/pages/documents/corporate/PowerOfAttorneyCorporateForm.tsx(17,5): error TS6133: 'FileCheck' is declared but its value is never read.

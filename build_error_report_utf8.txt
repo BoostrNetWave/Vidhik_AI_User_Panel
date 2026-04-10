@@ -1,0 +1,18 @@
+﻿
+> user-admin2@1.0.0 build
+> tsc && vite build
+
+client/src/pages/documents/DocumentReviewPage.tsx(3,1): error TS6133: 'useNavigate' is declared but its value is never read.
+client/src/pages/documents/DocumentReviewPage.tsx(8,5): error TS6133: 'CheckCircle' is declared but its value is never read.
+client/src/pages/documents/DocumentReviewPage.tsx(10,5): error TS6133: 'Clock' is declared but its value is never read.
+client/src/pages/documents/DocumentReviewPage.tsx(16,5): error TS6133: 'ArrowLeft' is declared but its value is never read.
+client/src/pages/documents/DocumentReviewPage.tsx(17,5): error TS6133: 'CheckSquare' is declared but its value is never read.
+client/src/pages/documents/DocumentReviewPage.tsx(19,5): error TS6133: 'Cpu' is declared but its value is never read.
+client/src/pages/documents/DocumentReviewPage.tsx(22,5): error TS6133: 'Lock' is declared but its value is never read.
+client/src/pages/documents/DocumentReviewPage.tsx(23,5): error TS6133: 'Eye' is declared but its value is never read.
+client/src/pages/documents/DocumentReviewPage.tsx(28,5): error TS6133: 'Menu' is declared but its value is never read.
+client/src/pages/documents/DocumentReviewPage.tsx(30,5): error TS6133: 'MessageSquare' is declared but its value is never read.
+client/src/pages/documents/DocumentReviewPage.tsx(31,5): error TS6133: 'AlertCircle' is declared but its value is never read.
+client/src/pages/documents/DocumentReviewPage.tsx(37,52): error TS6133: 'CardDescription' is declared but its value is never read.
+client/src/pages/documents/DocumentReviewPage.tsx(39,28): error TS2307: Cannot find module '@/components/ui/scroll-area' or its corresponding type declarations.
+client/src/pages/documents/DocumentReviewPage.tsx(41,1): error TS6133: 'toast' is declared but its value is never read.
