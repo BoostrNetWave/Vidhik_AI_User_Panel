@@ -29,7 +29,7 @@ import { Progress } from "@/components/ui/progress";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import axios from 'axios';
+import api from '@/lib/api';
 import { toast } from 'sonner';
 
 type ReviewState = 'UPLOAD' | 'PROCESSING' | 'COMPLETED';
@@ -75,13 +75,16 @@ export default function DocumentReviewPage() {
         setLogs(currentSteps.map(step => ({ msg: step, status: 'pending' })));
 
         try {
+            const user = JSON.parse(localStorage.getItem('user') || '{}');
+            const userId = user._id || user.id || "PRO_USER_001";
+            
             // Send file via FormData for real server-side parsing
             const formData = new FormData();
             formData.append('file', file);
-            formData.append('userId', "PRO_USER_001");
+            formData.append('userId', userId);
             formData.append('isDeepScanEnabled', String(isDeepScanEnabled));
 
-            const response = await axios.post('/api/documents/review', formData, {
+            const response = await api.post('/documents/review', formData, {
                 headers: {
                     'Content-Type': 'multipart/form-data'
                 }

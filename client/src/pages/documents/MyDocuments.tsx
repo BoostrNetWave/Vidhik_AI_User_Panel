@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import axios from 'axios';
+import api from '@/lib/api';
 import { toast } from 'sonner';
 import DashboardLayout from "@/layout/DashboardLayout";
 import { UserNav } from "@/components/dashboard/UserNav";
@@ -61,9 +61,9 @@ export default function MyDocuments() {
 
             if (userId) {
                 const endpoint = activeTab === 'trash'
-                    ? `/api/documents/trash/${userId}`
-                    : `/api/documents/user/${userId}`;
-                const response = await axios.get(endpoint);
+                    ? `/documents/trash/${userId}`
+                    : `/documents/user/${userId}`;
+                const response = await api.get(endpoint);
                 if (response.data.success) {
                     setDocuments(response.data.data);
                 }
@@ -90,9 +90,9 @@ export default function MyDocuments() {
         setIsDeleting(id);
         try {
             const endpoint = activeTab === 'trash'
-                ? `/api/documents/permanent/${id}`
-                : `/api/documents/${id}`;
-            const response = await axios.delete(endpoint);
+                ? `/documents/permanent/${id}`
+                : `/documents/${id}`;
+            const response = await api.delete(endpoint);
             if (response.data.success) {
                 setDocuments(prev => prev.filter(doc => doc._id !== id));
                 setIsDeleteModalOpen(false);
@@ -121,7 +121,7 @@ export default function MyDocuments() {
     const handleRestore = async (id: string) => {
         setIsRestoring(id);
         try {
-            const response = await axios.post(`/api/documents/restore/${id}`);
+            const response = await api.post(`/documents/restore/${id}`);
             if (response.data.success) {
                 // Refresh the list based on current tab
                 fetchDocuments();

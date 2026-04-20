@@ -2,7 +2,7 @@ import { useState, ReactNode } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { ChevronDown, ChevronUp, Loader2, FileText, Download, Eye, Edit, Save, CheckCircle } from "lucide-react";
-import axios from 'axios';
+import api from '@/lib/api';
 import { Document, Packer, Paragraph, TextRun } from 'docx';
 import { saveAs } from 'file-saver';
 import ReactQuill from 'react-quill';
@@ -72,7 +72,7 @@ export default function DocumentBaseGenerator({
         }, 500);
 
         try {
-            const response = await axios.post('/api/documents/generate', {
+            const response = await api.post('/documents/generate', {
                 documentType,
                 formData
             });
@@ -185,7 +185,7 @@ export default function DocumentBaseGenerator({
                 return;
             }
 
-            await axios.post('/api/documents/save', {
+            await api.post('/documents/save', {
                 userId,
                 title,
                 documentType,

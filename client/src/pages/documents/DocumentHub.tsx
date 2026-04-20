@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
+import api from '@/lib/api';
 import {
     FileText,
     Briefcase,
@@ -100,7 +100,7 @@ export default function DocumentHub() {
 
     const fetchDocumentTypes = async () => {
         try {
-            const response = await axios.get('/api/documents/types');
+            const response = await api.get('/documents/types');
             setDocumentTypes(response.data.data);
         } catch (error) {
             console.error('Error fetching document types:', error);

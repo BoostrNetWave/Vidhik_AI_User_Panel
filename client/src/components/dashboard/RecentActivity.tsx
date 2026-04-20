@@ -12,7 +12,7 @@ import { MoreVertical, FileText, ArrowRight } from "lucide-react"
 
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import axios from "axios";
+import api from "@/lib/api";
 
 export function RecentActivity() {
     const navigate = useNavigate();
@@ -26,7 +26,7 @@ export function RecentActivity() {
                 const userId = user._id || user.id;
 
                 if (userId) {
-                    const response = await axios.get(`/api/documents/user/${userId}`);
+                    const response = await api.get(`/documents/user/${userId}`);
                     if (response.data.success) {
                         setDocuments(response.data.data);
                     }

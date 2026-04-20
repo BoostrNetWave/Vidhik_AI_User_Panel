@@ -57,8 +57,8 @@ export default function SignIn() {
 
             navigate('/dashboard')
         } catch (error: any) {
-            console.error(error)
-            const message = error.response?.data?.message || "Invalid email or password."
+            console.error('Login error:', error)
+            const message = error.response?.data?.message || "Something went wrong. Please check your connection and try again."
             toast.error(message)
         } finally {
             setIsLoading(false)

@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
+import api from '@/lib/api';
 import {
     Search,
     Plus,
@@ -97,7 +97,7 @@ export default function LegalResearchPage() {
 
     const fetchHistory = async () => {
         try {
-            const response = await axios.get('http://localhost:5003/api/research/history');
+            const response = await api.get('/research/history');
             setHistory(response.data);
         } catch (err) {
             console.error("Failed to fetch history:", err);
@@ -173,7 +173,7 @@ export default function LegalResearchPage() {
                 setTimeRemaining(0);
             }, 7000);
 
-            const response = await axios.post('http://localhost:5003/api/research', { query: searchQuery });
+            const response = await api.post('/research', { query: searchQuery });
 
             // Wait slightly for the final stage to show completion if needed
             await new Promise(r => setTimeout(r, 7500));
@@ -201,7 +201,7 @@ export default function LegalResearchPage() {
             const assistantMessage = messages.find(m => m.role === 'assistant');
             if (!assistantMessage) return;
 
-            await axios.post('http://localhost:5003/api/research/save', {
+            await api.post('/research/save', {
                 query: query,
                 answer: assistantMessage.content,
                 title: query.length > 50 ? query.substring(0, 50) + '...' : query,
@@ -226,7 +226,7 @@ export default function LegalResearchPage() {
         if (!researchToDelete) return;
 
         try {
-            await axios.delete(`http://localhost:5003/api/research/${researchToDelete}`);
+            await api.delete(`/research/${researchToDelete}`);
             // Refresh history after deletion
             await fetchHistory();
             setIsDeleteDialogOpen(false);
@@ -240,7 +240,7 @@ export default function LegalResearchPage() {
     const handleClearAllHistory = async () => {
         setIsClearingAll(true);
         try {
-            await axios.delete('http://localhost:5003/api/research/history/clear');
+            await api.delete('/research/history/clear');
             setHistory([]);
             setIsSettingsOpen(false);
         } catch (err) {
@@ -509,7 +509,7 @@ export default function LegalResearchPage() {
 
     return (
         <DashboardLayout userNav={<UserNav />}>
-            <div className="max-w-[1400px] mx-auto min-h-[calc(100vh-120px)] flex flex-col lg:flex-row gap-8 pb-10">
+            <div className="max-w-[1400px] mx-auto min-h-[calc(100vh-120px)] flex flex-col gap-10 pb-10">
                 <input
                     type="file"
                     ref={fileInputRef}
@@ -674,7 +674,7 @@ export default function LegalResearchPage() {
                             </div>
 
                             {/* Search Container */}
-                            <div className="w-full max-w-3xl relative group">
+                            <div className="w-full max-w-5xl relative group">
                                 <div className="absolute -inset-1 bg-gradient-to-r from-violet-600 to-indigo-600 rounded-[2rem] blur opacity-20 group-hover:opacity-40 transition duration-1000 group-hover:duration-200"></div>
                                 <div className="relative bg-white border-2 border-gray-100 rounded-[2.5rem] p-4 shadow-2xl flex flex-col transition-all duration-300">
                                     {/* Attachment Preview */}
@@ -1084,94 +1084,80 @@ export default function LegalResearchPage() {
                             </div>
                         </div>
                     )}
-                </div>
 
-                {/* Right Sidebar: Legal Updates & History */}
-                {!isSearching && (
-                    <aside className="w-full lg:w-96 space-y-8 animate-in slide-in-from-right-10 duration-1000">
-                        <Card className="rounded-[2.5rem] border-none shadow-xl bg-white overflow-hidden min-h-[800px] flex flex-col transition-all duration-500">
-                            <CardHeader className="bg-gray-50/50 p-8 border-b">
-                                <div className="flex items-center justify-between">
-                                    <div className="space-y-1">
-                                        <CardTitle className="text-sm font-black text-gray-900 uppercase tracking-tighter">
-                                            {showResults ? "Research History" : "Global Legal Updates"}
-                                        </CardTitle>
-                                        <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">
-                                            {showResults ? "Your Past Queries" : `Live Feed • ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`}
-                                        </p>
+                    {/* Horizontal Legal Updates - Moved from Sidebar */}
+                    {!isSearching && !showResults && activeTab === 'research' && (
+                        <div className="w-full space-y-8 pt-10 border-t border-gray-100">
+                            <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-4">
+                                    <h3 className="text-sm font-black text-gray-900 uppercase tracking-tighter">Global Legal Updates</h3>
+                                    <div className="flex items-center gap-2 px-3 py-1 rounded-full border bg-red-50 border-red-100">
+                                        <div className="h-1.5 w-1.5 rounded-full bg-red-500 animate-pulse"></div>
+                                        <span className="text-[10px] font-black uppercase tracking-widest text-red-600">Live Feed</span>
                                     </div>
-                                    {!showResults && (
-                                        <div className="flex items-center gap-2 px-2 py-1 rounded-full border bg-red-50 border-red-100">
-                                            <div className="h-1.5 w-1.5 rounded-full bg-red-500 animate-pulse"></div>
-                                            <span className="text-[9px] font-black uppercase tracking-widest text-red-600">Live</span>
-                                        </div>
-                                    )}
                                 </div>
-                            </CardHeader>
-                            <CardContent className="p-0 flex-1 overflow-y-auto">
-                                <div className="divide-y divide-gray-50">
-                                    {(showResults ? history : legalUpdates).map((item, i) => (
-                                        <div key={i} className="p-8 hover:bg-gray-50/80 transition-all cursor-pointer group" onClick={() => handleSearch(item.description)}>
-                                            <div className="flex flex-col space-y-3">
-                                                <div className="flex items-center justify-between">
-                                                    <Badge className={`${item.category ? (
-                                                        item.category === 'SUPREME COURT' ? 'bg-violet-50 text-violet-600' :
-                                                            item.category === 'TAXATION' ? 'bg-orange-50 text-orange-600' :
-                                                                item.category === 'DATA PRIVACY' ? 'bg-green-50 text-green-600' :
-                                                                    'bg-purple-50 text-purple-600'
-                                                    ) : 'bg-gray-50 text-gray-600'
-                                                        } border-none font-black text-[9px] px-2 py-0.5 tracking-widest uppercase`}>
-                                                        {item.category || (showResults ? "PAST RESEARCH" : "UPDATE")}
-                                                    </Badge>
-                                                    <span className="text-[10px] text-gray-400 font-bold">{item.time || item.date}</span>
-                                                </div>
-                                                <h5 className="font-bold text-gray-900 leading-snug group-hover:text-violet-600 transition-colors">
-                                                    {item.title || (item.description.length > 50 ? item.description.substring(0, 50) + '...' : item.description)}
-                                                </h5>
-                                                <p className="text-xs text-gray-500 leading-relaxed line-clamp-2">{item.description}</p>
-                                                <div className="pt-2">
-                                                    <Button
-                                                        variant="link"
-                                                        className="p-0 h-auto text-[10px] font-black uppercase text-violet-600 tracking-widest flex items-center gap-1"
-                                                    >
-                                                        {showResults ? "Relaunch Query" : "Explore Implications"}
-                                                        <ArrowRight className="h-3 w-3" />
-                                                    </Button>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                            </CardContent>
-                            {!showResults && (
-                                <div className="p-6 bg-gray-50/50 border-t">
-                                    <Button 
-                                        variant="outline" 
-                                        className="w-full rounded-2xl h-12 gap-2 font-bold border-gray-200 text-gray-600 hover:bg-white bg-transparent"
-                                        onClick={() => setIsSettingsOpen(true)}
-                                    >
-                                        <Globe className="h-4 w-4" />
-                                        Configure Feed Alerts
-                                    </Button>
-                                </div>
-                            )}
-                        </Card>
-
-                        {/* Pro Plan Upsell */}
-                        <Card className="rounded-[2.5rem] border-none shadow-2xl bg-gradient-to-br from-indigo-600 to-violet-700 p-8 text-white relative overflow-hidden group">
-                            <div className="absolute -right-10 -top-10 w-40 h-40 bg-white/10 rounded-full blur-3xl group-hover:scale-150 transition-transform duration-700"></div>
-                            <div className="relative space-y-6">
-                                <div className="space-y-2">
-                                    <Badge className="bg-white/20 text-white border-none font-bold text-[9px] px-2 tracking-widest">PRO PLAN</Badge>
-                                    <h4 className="text-xl font-black leading-tight">Get unlimited access to advanced case law analysis.</h4>
-                                </div>
-                                <Button className="w-full bg-white text-violet-700 hover:bg-violet-50 rounded-2xl h-12 font-black" onClick={() => navigate('/billing')}>
-                                    Upgrade Now
+                                <Button 
+                                    variant="outline" 
+                                    size="sm"
+                                    className="rounded-xl font-bold border-gray-200 text-gray-600 hover:bg-gray-50 bg-white"
+                                    onClick={() => setIsSettingsOpen(true)}
+                                >
+                                    <Globe className="h-4 w-4 mr-2" />
+                                    Configure Feed
                                 </Button>
                             </div>
-                        </Card>
-                    </aside>
-                )}
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                                {legalUpdates.map((item, i) => (
+                                    <Card key={i} className="rounded-[2.5rem] border-none shadow-sm bg-white hover:shadow-xl hover:-translate-y-1 transition-all duration-300 group cursor-pointer" onClick={() => handleSearch(item.description)}>
+                                        <CardContent className="p-8 flex flex-col h-full">
+                                            <div className="flex items-center justify-between mb-4">
+                                                <Badge className={`${item.category === 'SUPREME COURT' ? 'bg-violet-50 text-violet-600' :
+                                                    item.category === 'TAXATION' ? 'bg-orange-50 text-orange-600' :
+                                                        item.category === 'DATA PRIVACY' ? 'bg-green-50 text-green-600' :
+                                                            'bg-purple-50 text-purple-600'
+                                                    } border-none font-black text-[9px] px-2 py-0.5 tracking-widest uppercase`}>
+                                                    {item.category}
+                                                </Badge>
+                                                <span className="text-[10px] text-gray-400 font-bold">{item.time}</span>
+                                            </div>
+                                            <h5 className="font-bold text-gray-900 leading-snug group-hover:text-violet-600 transition-colors line-clamp-2 mb-3">
+                                                {item.title}
+                                            </h5>
+                                            <p className="text-sm text-gray-500 leading-relaxed line-clamp-3 mb-6">{item.description}</p>
+                                            <div className="mt-auto">
+                                                <div className="text-[10px] font-black uppercase text-violet-600 tracking-widest flex items-center gap-1">
+                                                    Explore Implications
+                                                    <ArrowRight className="h-3 w-3 group-hover:translate-x-1 transition-transform" />
+                                                </div>
+                                            </div>
+                                        </CardContent>
+                                    </Card>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Pro Plan Banner - Horizontal Version */}
+                    {!isSearching && (
+                        <div className="mt-10">
+                            <Card className="rounded-[3rem] border-none shadow-2xl bg-gradient-to-r from-indigo-600 via-violet-700 to-purple-800 p-10 text-white relative overflow-hidden group">
+                                <div className="absolute -right-20 -top-20 w-80 h-80 bg-white/10 rounded-full blur-3xl group-hover:scale-150 transition-transform duration-1000"></div>
+                                <div className="relative flex flex-col lg:flex-row items-center justify-between gap-10">
+                                    <div className="space-y-4 text-center lg:text-left">
+                                        <Badge className="bg-white/20 text-white border-none font-bold text-[10px] px-3 tracking-widest uppercase py-1">Premium Access</Badge>
+                                        <h4 className="text-3xl md:text-4xl font-black leading-tight">Upgrade to Pro for Advanced <br className="hidden md:block"/>Case Law Analysis</h4>
+                                        <p className="text-indigo-100 font-medium text-lg max-w-2xl">Get unlimited access to our full suite of premium legal tools, deep case analysis, and priority research clusters.</p>
+                                    </div>
+                                    <div className="flex flex-col sm:flex-row items-center gap-4 w-full lg:w-auto">
+                                        <Button className="w-full sm:w-auto shrink-0 bg-white text-violet-700 hover:bg-violet-50 rounded-2xl h-16 px-12 font-black text-xl shadow-xl shadow-indigo-900/20 transition-all hover:scale-105 active:scale-95" onClick={() => navigate('/billing')}>
+                                            Upgrade Now
+                                        </Button>
+                                    </div>
+                                </div>
+                            </Card>
+                        </div>
+                    )}
+                </div>
             </div>
 
             {/* Custom Delete Confirmation Modal */}
