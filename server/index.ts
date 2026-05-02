@@ -47,9 +47,9 @@ const MONGO_URI = process.env.MONGO_URI || 'mongodb://localhost:27017/user-admin
 
 // Serve static assets in production
 if (process.env.NODE_ENV === 'production') {
-    const clientBuildPath = path.join(__dirname, '../client');
+    const clientBuildPath = path.join(__dirname, '../dist/client');
     app.use('/user', express.static(clientBuildPath));
-    app.get('/user/*', (req, res) => {
+    app.get(['/user', '/user/*'], (req, res) => {
         res.sendFile(path.join(clientBuildPath, 'index.html'));
     });
 }
