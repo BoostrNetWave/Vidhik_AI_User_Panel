@@ -9,6 +9,7 @@ import morgan from 'morgan';
 import helmet from 'helmet';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import fs from 'fs';
 
 import authRoutes from './routes/authRoutes';
 import documentRoutes from './routes/documentRoutes';
@@ -46,7 +47,10 @@ const __dirname = path.dirname(__filename);
 const MONGO_URI = process.env.MONGO_URI || 'mongodb://localhost:27017/user-admin2';
 
 // Serve static assets unconditionally (bulletproof routing)
-const clientBuildPath = path.join(__dirname, '../dist/client');
+let clientBuildPath = path.join(__dirname, '../dist/client');
+if (!fs.existsSync(clientBuildPath)) {
+    clientBuildPath = path.join(__dirname, '../../dist/client');
+}
 app.use('/user', express.static(clientBuildPath));
 app.get(['/user', '/user/*'], (req, res) => {
     res.sendFile(path.join(clientBuildPath, 'index.html'));
