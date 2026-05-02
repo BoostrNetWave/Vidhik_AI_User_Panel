@@ -7,7 +7,8 @@ import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import morgan from 'morgan';
 import helmet from 'helmet';
-// Removed get-port
+import path from 'path';
+import { fileURLToPath } from 'url';
 
 import authRoutes from './routes/authRoutes';
 import documentRoutes from './routes/documentRoutes';
@@ -38,8 +39,20 @@ app.get('/api/health', (_req, res) => {
     res.json({ status: 'ok', message: 'Server is running' });
 });
 
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
 // MongoDB Connection
 const MONGO_URI = process.env.MONGO_URI || 'mongodb://localhost:27017/user-admin2';
+
+// Serve static assets in production
+if (process.env.NODE_ENV === 'production') {
+    const clientBuildPath = path.join(__dirname, '../client');
+    app.use('/user', express.static(clientBuildPath));
+    app.get('/user/*', (req, res) => {
+        res.sendFile(path.join(clientBuildPath, 'index.html'));
+    });
+}
 
 mongoose.connect(MONGO_URI)
     .then(async () => {

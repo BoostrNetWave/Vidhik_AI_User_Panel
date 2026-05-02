@@ -33,7 +33,9 @@
         "server"
     ],
     "exclude": [
-        "client/next-app"
+        "client/next-app",
+        "node_modules",
+        "dist"
     ],
     "references": [
         {
