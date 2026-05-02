@@ -45,14 +45,12 @@ const __dirname = path.dirname(__filename);
 // MongoDB Connection
 const MONGO_URI = process.env.MONGO_URI || 'mongodb://localhost:27017/user-admin2';
 
-// Serve static assets in production
-if (process.env.NODE_ENV === 'production') {
-    const clientBuildPath = path.join(__dirname, '../dist/client');
-    app.use('/user', express.static(clientBuildPath));
-    app.get(['/user', '/user/*'], (req, res) => {
-        res.sendFile(path.join(clientBuildPath, 'index.html'));
-    });
-}
+// Serve static assets unconditionally (bulletproof routing)
+const clientBuildPath = path.join(__dirname, '../dist/client');
+app.use('/user', express.static(clientBuildPath));
+app.get(['/user', '/user/*'], (req, res) => {
+    res.sendFile(path.join(clientBuildPath, 'index.html'));
+});
 
 mongoose.connect(MONGO_URI)
     .then(async () => {
