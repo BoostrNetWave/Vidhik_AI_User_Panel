@@ -49,15 +49,32 @@ export default function SignIn() {
                 password: values.password
             })
 
-            toast.success("Logged in successfully!")
-
             // Store token and user data
-            localStorage.setItem('token', data.token)
-            localStorage.setItem('user', JSON.stringify(data))
+            localStorage.setItem('vidhik_auth_token', data.token)
+            localStorage.setItem('vidhik_user_data', JSON.stringify(data))
 
-            navigate('/dashboard')
+            // Role-based redirection
+            if (data.role === 'admin') {
+                toast.success("Logging in as Super Admin...")
+                navigate('/admin')
+            } else {
+                toast.success("Logging in as User...")
+                navigate('/dashboard')
+            }
         } catch (error: any) {
             console.error('Login error:', error)
+            
+            // Check if account is not verified
+            if (error.response?.status === 403 && error.response?.data?.isVerified === false) {
+                const unverifiedEmail = error.response.data.email || values.email;
+                toast.error("Email not verified! Redirecting to verification page...");
+                // Redirect to main site's verification page
+                setTimeout(() => {
+                    window.location.href = `/verify-otp?email=${encodeURIComponent(unverifiedEmail)}&role=user`;
+                }, 1500);
+                return;
+            }
+            
             const message = error.response?.data?.message || "Something went wrong. Please check your connection and try again."
             toast.error(message)
         } finally {
@@ -87,7 +104,7 @@ export default function SignIn() {
                                 <FormItem>
                                     <FormLabel>Email Address</FormLabel>
                                     <FormControl>
-                                        <Input placeholder="name@company.com" {...field} />
+                                        <Input placeholder="name@company.com" autoComplete="off" {...field} />
                                     </FormControl>
                                     <FormMessage />
                                 </FormItem>
@@ -105,6 +122,7 @@ export default function SignIn() {
                                             <Input
                                                 type={showPassword ? "text" : "password"}
                                                 placeholder="••••••••"
+                                                autoComplete="off"
                                                 {...field}
                                             />
                                         </FormControl>

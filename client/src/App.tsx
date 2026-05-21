@@ -41,7 +41,10 @@ import LawyerBookingSuccess from './pages/LawyerBookingSuccess'
 import BillingPlans from './pages/BillingPlans'
 import BillingCheckout from './pages/BillingCheckout'
 import SettingsPage from './pages/SettingsPage'
+import AdminSettings from './pages/admin/AdminSettings'
 // SettingsPage import removed due to missing module
+import AdminProtectedRoute from './components/auth/AdminProtectedRoute'
+
 function App() {
     return (
         <BrowserRouter basename="/user">
@@ -96,6 +99,16 @@ function App() {
                 <Route path="/billing" element={<BillingPlans />} />
                 <Route path="/billing/checkout" element={<BillingCheckout />} />
                 <Route path="/settings" element={<SettingsPage />} />
+                <Route path="/admin" element={
+                    <AdminProtectedRoute>
+                        <AdminSettings />
+                    </AdminProtectedRoute>
+                } />
+                <Route path="/admin/:tab" element={
+                    <AdminProtectedRoute>
+                        <AdminSettings />
+                    </AdminProtectedRoute>
+                } />
                 
             </Routes>
             <Toaster position="top-center" />

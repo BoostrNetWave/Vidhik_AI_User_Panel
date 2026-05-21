@@ -1,8 +1,8 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
     Search, 
-    User, 
+    User as UserIcon, 
     Star, 
     MapPin, 
     ShieldCheck, 
@@ -17,131 +17,40 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-
-const lawyers = [
-    {
-        id: 1,
-        name: "Adv. Rajesh Kumar",
-        specialization: "Corporate Law",
-        experience: "15+ Years",
-        rating: 4.9,
-        reviews: 124,
-        location: "New Delhi",
-        status: "Online",
-        verified: true,
-        price: "₹2,500/session",
-        tags: ["Mergers & Acquisitions", "Contract Law", "Compliance"]
-    },
-    {
-        id: 2,
-        name: "Adv. Priya Singh",
-        specialization: "Family & Civil Law",
-        experience: "12+ Years",
-        rating: 4.8,
-        reviews: 89,
-        location: "Mumbai",
-        status: "Online",
-        verified: true,
-        price: "₹2,000/session",
-        tags: ["Divorce", "Property Disputes", "Civil Litigation"]
-    },
-    {
-        id: 3,
-        name: "Adv. Amit Verma",
-        specialization: "Criminal Law",
-        experience: "20+ Years",
-        rating: 5.0,
-        reviews: 215,
-        location: "Bangalore",
-        status: "Busy",
-        verified: true,
-        price: "₹3,500/session",
-        tags: ["Bail", "White Collar Crime", "Cyber Law"]
-    },
-    {
-        id: 4,
-        name: "Adv. Neha Gupta",
-        specialization: "Intellectual Property",
-        experience: "8+ Years",
-        rating: 4.7,
-        reviews: 56,
-        location: "Hyderabad",
-        status: "Online",
-        verified: true,
-        price: "₹1,800/session",
-        tags: ["Trademarks", "Patents", "Copyright"]
-    },
-    {
-        id: 5,
-        name: "Adv. Vikram Sethi",
-        specialization: "Taxation Law",
-        experience: "18+ Years",
-        rating: 4.9,
-        reviews: 142,
-        location: "Chennai",
-        status: "Online",
-        verified: true,
-        price: "₹3,200/session",
-        tags: ["GST", "Income Tax", "Corporate Tax"]
-    },
-    {
-        id: 6,
-        name: "Adv. Ananya Rao",
-        specialization: "Civil Litigation",
-        experience: "10+ Years",
-        rating: 4.6,
-        reviews: 74,
-        location: "Pune",
-        status: "Online",
-        verified: true,
-        price: "₹2,200/session",
-        tags: ["Land Disputes", "Recovery Suits", "Writ Petitions"]
-    },
-    {
-        id: 7,
-        name: "Adv. Sanjay Mehta",
-        specialization: "Corporate Law",
-        experience: "25+ Years",
-        rating: 5.0,
-        reviews: 310,
-        location: "Kolkata",
-        status: "Online",
-        verified: true,
-        price: "₹5,000/session",
-        tags: ["IPO", "Banking Law", "Insolvency"]
-    },
-    {
-        id: 8,
-        name: "Adv. Meera Joshi",
-        specialization: "Criminal Law",
-        experience: "14+ Years",
-        rating: 4.8,
-        reviews: 92,
-        location: "Ahmedabad",
-        status: "Online",
-        verified: true,
-        price: "₹2,800/session",
-        tags: ["Anticipatory Bail", "Criminal Appeals", "NDPS"]
-    }
-];
+import { lawyerService } from '@/services/lawyerService';
 
 export default function AILawyerList() {
     const navigate = useNavigate();
     const [searchQuery, setSearchQuery] = useState("");
     const [selectedCategory, setSelectedCategory] = useState("All");
+    const [lawyers, setLawyers] = useState<any[]>([]);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        const fetchLawyers = async () => {
+            try {
+                setLoading(true);
+                const data = await lawyerService.getPublicLawyers();
+                setLawyers(data);
+            } catch (error) {
+                console.error("Failed to fetch lawyers", error);
+            } finally {
+                setLoading(false);
+            }
+        };
+        fetchLawyers();
+    }, []);
 
     const categories = ["All", "Corporate", "Criminal", "Family", "Civil", "IP Law", "Taxation"];
 
     const filteredLawyers = lawyers.filter(lawyer => {
         const matchesSearch = 
-            lawyer.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            lawyer.specialization.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            lawyer.location.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            lawyer.tags.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase()));
+            (lawyer.fullName || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
+            (lawyer.expertise || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
+            (lawyer.location || "").toLowerCase().includes(searchQuery.toLowerCase());
         
         const matchesCategory = selectedCategory === "All" || 
-            lawyer.specialization.toLowerCase().includes(selectedCategory.toLowerCase()) ||
-            (selectedCategory === "IP Law" && lawyer.specialization === "Intellectual Property");
+            (lawyer.expertise || "").toLowerCase().includes(selectedCategory.toLowerCase());
 
         return matchesSearch && matchesCategory;
     });
@@ -216,69 +125,69 @@ export default function AILawyerList() {
                                     <div className="flex flex-col sm:flex-row gap-6">
                                         {/* Profile Image / Avatar Placeholder */}
                                         <div className="relative shrink-0">
-                                            <div className="h-20 w-20 rounded-2xl bg-secondary flex items-center justify-center border border-border shadow-sm">
-                                                <User className="h-10 w-10 text-muted-foreground/40" />
-                                            </div>
-                                            <div className={`absolute -bottom-1 -right-1 h-5 w-5 rounded-full border-2 border-card flex items-center justify-center ${
-                                                lawyer.status === "Online" ? "bg-green-500" : "bg-gray-300"
-                                            }`}>
-                                                {lawyer.status === "Online" && (
-                                                    <span className="absolute inset-0 rounded-full bg-green-500 animate-ping opacity-75"></span>
-                                                )}
-                                            </div>
-                                        </div>
+                                             <div className="h-20 w-20 rounded-2xl bg-secondary flex items-center justify-center border border-border shadow-sm">
+                                                 <UserIcon className="h-10 w-10 text-muted-foreground/40" />
+                                             </div>
+                                             <div className={`absolute -bottom-1 -right-1 h-5 w-5 rounded-full border-2 border-card flex items-center justify-center ${
+                                                 lawyer.isApproved ? "bg-green-500" : "bg-gray-300"
+                                             }`}>
+                                                 {lawyer.isApproved && (
+                                                     <span className="absolute inset-0 rounded-full bg-green-500 animate-ping opacity-75"></span>
+                                                 )}
+                                             </div>
+                                         </div>
 
-                                        {/* Details */}
-                                        <div className="flex-1 space-y-4">
-                                            <div className="flex items-start justify-between">
-                                                <div className="space-y-1">
-                                                    <div className="flex items-center gap-2">
-                                                        <h3 className="text-xl font-bold text-foreground">{lawyer.name}</h3>
-                                                        {lawyer.verified && (
-                                                            <ShieldCheck className="h-4 w-4 text-primary" />
-                                                        )}
-                                                    </div>
-                                                    <p className="text-primary font-semibold uppercase tracking-wider text-[10px]">{lawyer.specialization}</p>
-                                                </div>
-                                                <div className="flex items-center gap-1 bg-secondary px-2.5 py-1 rounded-lg border border-border">
-                                                    <Star className="h-3.5 w-3.5 text-primary fill-primary" />
-                                                    <span className="font-bold text-foreground text-xs">{lawyer.rating}</span>
-                                                </div>
-                                            </div>
+                                         {/* Details */}
+                                         <div className="flex-1 space-y-4">
+                                             <div className="flex items-start justify-between">
+                                                 <div className="space-y-1">
+                                                     <div className="flex items-center gap-2">
+                                                         <h3 className="text-xl font-bold text-foreground">{lawyer.fullName}</h3>
+                                                         {lawyer.isVerified && (
+                                                             <ShieldCheck className="h-4 w-4 text-primary" />
+                                                         )}
+                                                     </div>
+                                                     <p className="text-primary font-semibold uppercase tracking-wider text-[10px]">{lawyer.expertise || "Expert Lawyer"}</p>
+                                                 </div>
+                                                 <div className="flex items-center gap-1 bg-secondary px-2.5 py-1 rounded-lg border border-border">
+                                                     <Star className="h-3.5 w-3.5 text-primary fill-primary" />
+                                                     <span className="font-bold text-foreground text-xs">{lawyer.rating || "5.0"}</span>
+                                                 </div>
+                                             </div>
 
-                                            <div className="grid grid-cols-2 gap-4">
-                                                <div className="flex items-center gap-2 text-muted-foreground text-sm font-medium">
-                                                    <Clock className="h-4 w-4 text-muted-foreground/60" />
-                                                    {lawyer.experience} exp.
-                                                </div>
-                                                <div className="flex items-center gap-2 text-muted-foreground text-sm font-medium">
-                                                    <MapPin className="h-4 w-4 text-muted-foreground/60" />
-                                                    {lawyer.location}
-                                                </div>
-                                            </div>
+                                             <div className="grid grid-cols-2 gap-4">
+                                                 <div className="flex items-center gap-2 text-muted-foreground text-sm font-medium">
+                                                     <Clock className="h-4 w-4 text-muted-foreground/60" />
+                                                     {lawyer.experience || "10+"} exp.
+                                                 </div>
+                                                 <div className="flex items-center gap-2 text-muted-foreground text-sm font-medium">
+                                                     <MapPin className="h-4 w-4 text-muted-foreground/60" />
+                                                     {lawyer.location || "Remote"}
+                                                 </div>
+                                             </div>
 
-                                            <div className="flex flex-wrap gap-2 pt-1">
-                                                {lawyer.tags.map(tag => (
-                                                    <Badge key={tag} variant="secondary" className="bg-secondary/50 text-muted-foreground border-none font-semibold text-[9px] px-2.5 py-0.5 rounded-md uppercase tracking-wider">
-                                                        {tag}
-                                                    </Badge>
-                                                ))}
-                                            </div>
+                                             <div className="flex flex-wrap gap-2 pt-1">
+                                                 {(lawyer.practiceAreas || ["Legal Consult"]).map((tag: string) => (
+                                                     <Badge key={tag} variant="secondary" className="bg-secondary/50 text-muted-foreground border-none font-semibold text-[9px] px-2.5 py-0.5 rounded-md uppercase tracking-wider">
+                                                         {tag}
+                                                     </Badge>
+                                                 ))}
+                                             </div>
 
-                                            <div className="pt-5 flex items-center justify-between border-t border-border mt-5">
-                                                <div className="space-y-0.5">
-                                                    <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">Consultation Fee</p>
-                                                    <p className="text-base font-bold text-foreground">{lawyer.price}</p>
-                                                </div>
-                                                <Button 
-                                                    className="rounded-xl h-10 px-5 bg-violet-700 text-white hover:bg-violet-800 font-bold gap-2 transition-all"
-                                                    onClick={() => navigate(`/lawyers/${lawyer.id}`)}
-                                                >
-                                                    View Profile
-                                                    <ArrowRight className="h-4 w-4" />
-                                                </Button>
-                                            </div>
-                                        </div>
+                                             <div className="pt-5 flex items-center justify-between border-t border-border mt-5">
+                                                 <div className="space-y-0.5">
+                                                     <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">Consultation Fee</p>
+                                                     <p className="text-base font-bold text-foreground">₹{lawyer.hourlyRate || "1000"}/hr</p>
+                                                 </div>
+                                                 <Button 
+                                                     className="rounded-xl h-10 px-5 bg-violet-700 text-white hover:bg-violet-800 font-bold gap-2 transition-all"
+                                                     onClick={() => navigate(`/user/lawyers/${lawyer._id}`)}
+                                                 >
+                                                     View Profile
+                                                     <ArrowRight className="h-4 w-4" />
+                                                 </Button>
+                                             </div>
+                                         </div>
                                     </div>
                                 </CardContent>
                             </Card>

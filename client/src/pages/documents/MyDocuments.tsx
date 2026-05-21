@@ -56,7 +56,7 @@ export default function MyDocuments() {
     const fetchDocuments = async () => {
         setLoading(true);
         try {
-            const user = JSON.parse(localStorage.getItem('user') || '{}');
+            const user = JSON.parse(localStorage.getItem('user_data') || '{}');
             const userId = user._id || user.id;
 
             if (userId) {

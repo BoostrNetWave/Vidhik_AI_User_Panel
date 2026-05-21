@@ -14,6 +14,7 @@ import fs from 'fs';
 import authRoutes from './routes/authRoutes';
 import documentRoutes from './routes/documentRoutes';
 import researchRoutes from './routes/researchRoutes';
+import adminRoutes from './routes/adminRoutes';
 
 const app = express();
 const PORT = process.env.PORT || 5003;
@@ -34,6 +35,7 @@ app.use(cookieParser());
 app.use('/api/auth', authRoutes);
 app.use('/api/documents', documentRoutes);
 app.use('/api/research', researchRoutes);
+app.use('/api/admin', adminRoutes);
 
 // Basic Route
 app.get('/api/health', (_req, res) => {

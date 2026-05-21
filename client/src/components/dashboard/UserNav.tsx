@@ -18,11 +18,11 @@ import { useNavigate } from "react-router-dom"
 
 export function UserNav() {
     const navigate = useNavigate()
-    const user = JSON.parse(localStorage.getItem('user') || '{}')
+    const user = JSON.parse(localStorage.getItem('user_data') || '{}')
 
     const handleLogout = () => {
-        localStorage.removeItem('token')
-        localStorage.removeItem('user')
+        localStorage.removeItem('user_token')
+        localStorage.removeItem('user_data')
         navigate('/login')
     }
 

@@ -2,6 +2,11 @@ import mongoose from 'mongoose';
 import bcrypt from 'bcryptjs';
 
 const userSchema = new mongoose.Schema({
+    userId: {
+        type: String,
+        unique: true,
+        sparse: true // Allow existing users without userId
+    },
     fullName: {
         type: String,
         required: true,
@@ -23,11 +28,17 @@ const userSchema = new mongoose.Schema({
         enum: ['user', 'lawyer', 'admin'],
         default: 'user'
     },
-    phone: {
-        type: String,
-        trim: true
+    // Approval Status (for Lawyers)
+    isApproved: {
+        type: Boolean,
+        default: false
     },
-    designation: {
+    isVerified: {
+        type: Boolean,
+        default: false
+    },
+    // Common Profile Fields
+    phone: {
         type: String,
         trim: true
     },
@@ -35,14 +46,38 @@ const userSchema = new mongoose.Schema({
         type: String,
         trim: true
     },
-    termsAccepted: {
-        type: Boolean,
-        default: false
+    avatar: {
+        type: String,
+        default: ""
+    },
+    // Lawyer Specific Profile Fields (CMS manageable)
+    title: { type: String, default: "" },
+    expertise: { type: String, default: "" },
+    hourlyRate: { type: Number, default: 0 },
+    bio: { type: String, default: "" },
+    experience: { type: String, default: "" },
+    practiceAreas: { type: [String], default: [] },
+    languages: { type: [String], default: [] },
+    education: [{
+        degree: String,
+        school: String,
+        year: String
+    }],
+    rating: { type: Number, default: 0 },
+    reviews: { type: Number, default: 0 },
+    
+    verificationOTP: {
+        type: String
+    },
+    otpExpires: {
+        type: Date
     },
     createdAt: {
         type: Date,
         default: Date.now
     }
+}, {
+    timestamps: true
 });
 
 // Hash password before saving

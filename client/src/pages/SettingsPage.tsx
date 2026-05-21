@@ -54,7 +54,7 @@ export default function SettingsPage() {
         setActiveTab(initialTab);
     }, [initialTab]);
 
-    const storedUser = useMemo(() => safeParseJson<LocalUser>(localStorage.getItem("user"), {}), []);
+    const storedUser = useMemo(() => safeParseJson<LocalUser>(localStorage.getItem("user_data"), {}), []);
     const storedPrefs = useMemo(
         () =>
             safeParseJson<LocalPrefs>(localStorage.getItem("settings:prefs"), {
@@ -104,7 +104,7 @@ export default function SettingsPage() {
     const saveProfile = async () => {
         if (!validateProfile()) return toast.error("Please fix the highlighted fields");
 
-        const currentUser = safeParseJson<Record<string, any>>(localStorage.getItem("user"), {});
+        const currentUser = safeParseJson<Record<string, any>>(localStorage.getItem("user_data"), {});
         const userId = currentUser._id || currentUser.id;
 
         if (!userId) {
@@ -122,7 +122,7 @@ export default function SettingsPage() {
             });
 
             // Update localStorage with complete user object returned from server
-            localStorage.setItem("user", JSON.stringify(updatedData));
+            localStorage.setItem("user_data", JSON.stringify(updatedData));
             toast.success("Profile updated in database");
         } catch (error: any) {
             console.error("Profile update failed:", error);
@@ -154,12 +154,12 @@ export default function SettingsPage() {
     };
 
     const signOut = () => {
-        localStorage.removeItem("token");
-        localStorage.removeItem("user");
+        localStorage.removeItem("user_token");
+        localStorage.removeItem("user_data");
         navigate("/login");
     };
 
-    const userForAvatar = safeParseJson<LocalUser>(localStorage.getItem("user"), {});
+    const userForAvatar = safeParseJson<LocalUser>(localStorage.getItem("user_data"), {});
     const initials =
         (userForAvatar.fullName || "User")
             .split(" ")

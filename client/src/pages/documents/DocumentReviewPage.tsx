@@ -75,7 +75,7 @@ export default function DocumentReviewPage() {
         setLogs(currentSteps.map(step => ({ msg: step, status: 'pending' })));
 
         try {
-            const user = JSON.parse(localStorage.getItem('user') || '{}');
+            const user = JSON.parse(localStorage.getItem('user_data') || '{}');
             const userId = user._id || user.id || "PRO_USER_001";
             
             // Send file via FormData for real server-side parsing

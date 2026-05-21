@@ -169,10 +169,10 @@ export default function DashboardLayout({ children, userNav }: DashboardLayoutPr
                             {!isCollapsed && (
                                 <div className="text-right hidden sm:block">
                                     <p className="text-sm font-semibold text-slate-900 leading-none">
-                                        {JSON.parse(localStorage.getItem('user') || '{}').fullName || 'User'}
+                                        {JSON.parse(localStorage.getItem('user_data') || '{}').fullName || 'User'}
                                     </p>
                                     <p className="text-[11px] text-slate-500 font-medium mt-1">
-                                        {JSON.parse(localStorage.getItem('user') || '{}').designation || 'Legal Member'}
+                                        {JSON.parse(localStorage.getItem('user_data') || '{}').designation || 'Legal Member'}
                                     </p>
                                 </div>
                             )}

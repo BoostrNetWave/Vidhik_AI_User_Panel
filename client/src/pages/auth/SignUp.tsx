@@ -68,12 +68,18 @@ export default function SignUp() {
                 password: values.password
             })
 
-            toast.success("Account created successfully!")
-            // Optionally store token if auto-login is desired
-            localStorage.setItem('token', data.token)
-            localStorage.setItem('user', JSON.stringify(data))
+            // Store token and user data
+            localStorage.setItem('user_token', data.token)
+            localStorage.setItem('user_data', JSON.stringify(data))
 
-            navigate('/dashboard')
+            // Role-based redirection
+            if (data.role === 'admin') {
+                toast.success("Account created! Logging in as Super Admin...")
+                navigate('/admin')
+            } else {
+                toast.success("Account created! Logging in as User...")
+                navigate('/dashboard')
+            }
         } catch (error: any) {
             console.error(error)
             const message = error.response?.data?.message || "Something went wrong. Please try again."
@@ -107,7 +113,7 @@ export default function SignUp() {
                                     <FormControl>
                                         <div className="relative">
                                             <User className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                                            <Input placeholder="John Doe" className="pl-10 h-11 bg-gray-50 border-gray-200" {...field} />
+                                            <Input placeholder="John Doe" className="pl-10 h-11 bg-gray-50 border-gray-200" autoComplete="off" {...field} />
                                         </div>
                                     </FormControl>
                                     <FormMessage />
@@ -124,7 +130,7 @@ export default function SignUp() {
                                     <FormControl>
                                         <div className="relative">
                                             <Mail className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                                            <Input placeholder="name@company.com" className="pl-10 h-11 bg-gray-50 border-gray-200" {...field} />
+                                            <Input placeholder="name@company.com" className="pl-10 h-11 bg-gray-50 border-gray-200" autoComplete="off" {...field} />
                                         </div>
                                     </FormControl>
                                     <FormMessage />
@@ -145,6 +151,7 @@ export default function SignUp() {
                                                 type={showPassword ? "text" : "password"}
                                                 placeholder="••••••••"
                                                 className="pl-10 pr-10 h-11 bg-gray-50 border-gray-200"
+                                                autoComplete="off"
                                                 {...field}
                                             />
                                         </FormControl>

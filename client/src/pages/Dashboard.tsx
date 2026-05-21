@@ -1,3 +1,5 @@
+import { useEffect } from "react"
+import { useNavigate } from "react-router-dom"
 import DashboardLayout from "@/layout/DashboardLayout"
 import { StatsCards } from "@/components/dashboard/StatsCards"
 import { QuickActions } from "@/components/dashboard/QuickActions"
@@ -7,7 +9,15 @@ import { UserNav } from "@/components/dashboard/UserNav"
 import { Calendar } from "lucide-react"
 
 export default function Dashboard() {
-    const user = JSON.parse(localStorage.getItem('user') || '{}');
+    const user = JSON.parse(localStorage.getItem('vidhik_user_data') || '{}');
+    const navigate = useNavigate();
+
+    useEffect(() => {
+        if (user.role === 'admin') {
+            navigate('/admin');
+        }
+    }, [user, navigate]);
+
     const fullName = user.fullName || 'User';
     // const designation = user.designation || 'Legal Member';
 
