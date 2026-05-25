@@ -46,6 +46,10 @@ const userSchema = new mongoose.Schema({
         type: String,
         trim: true
     },
+    designation: {
+        type: String,
+        default: ""
+    },
     avatar: {
         type: String,
         default: ""

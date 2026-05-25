@@ -24,18 +24,14 @@ export default function AILawyerList() {
     const [searchQuery, setSearchQuery] = useState("");
     const [selectedCategory, setSelectedCategory] = useState("All");
     const [lawyers, setLawyers] = useState<any[]>([]);
-    const [loading, setLoading] = useState(true);
 
     useEffect(() => {
         const fetchLawyers = async () => {
             try {
-                setLoading(true);
                 const data = await lawyerService.getPublicLawyers();
                 setLawyers(data);
             } catch (error) {
                 console.error("Failed to fetch lawyers", error);
-            } finally {
-                setLoading(false);
             }
         };
         fetchLawyers();

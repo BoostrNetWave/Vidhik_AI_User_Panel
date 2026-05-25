@@ -9,7 +9,7 @@ import User from '../models/User';
 
 // @desc    Get all system configurations
 // @route   GET /api/admin/config
-export const getConfigs = async (req: Request, res: Response) => {
+export const getConfigs = async (_req: Request, res: Response) => {
     try {
         const configs = await SystemConfig.find({});
         res.json(configs);
@@ -42,7 +42,7 @@ export const updateConfig = async (req: Request, res: Response) => {
 
 // @desc    Get all users on the platform (Lawyers & Clients)
 // @route   GET /api/admin/users
-export const getAllUsers = async (req: Request, res: Response) => {
+export const getAllUsers = async (_req: Request, res: Response) => {
     try {
         const users = await User.find({}).select('-password').sort({ createdAt: -1 });
         res.json(users);
@@ -53,7 +53,7 @@ export const getAllUsers = async (req: Request, res: Response) => {
 
 // @desc    Get pending lawyers for approval
 // @route   GET /api/admin/pending-lawyers
-export const getPendingLawyers = async (req: Request, res: Response) => {
+export const getPendingLawyers = async (_req: Request, res: Response) => {
     try {
         const lawyers = await User.find({ role: 'lawyer', isApproved: false }).select('-password');
         res.json(lawyers);
@@ -104,7 +104,7 @@ export const verifyUser = async (req: Request, res: Response) => {
 
 // @desc    Get all APPROVED lawyers for public list
 // @route   GET /api/admin/public/lawyers
-export const getPublicLawyers = async (req: Request, res: Response) => {
+export const getPublicLawyers = async (_req: Request, res: Response) => {
     try {
         const lawyers = await User.find({ role: 'lawyer', isApproved: true }).select('-password');
         res.json(lawyers);

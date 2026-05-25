@@ -54,7 +54,7 @@ if (!fs.existsSync(clientBuildPath)) {
     clientBuildPath = path.join(__dirname, '../../dist/client');
 }
 app.use('/user', express.static(clientBuildPath));
-app.get(['/user', '/user/*'], (req, res) => {
+app.get(['/user', '/user/*'], (_req, res) => {
     res.sendFile(path.join(clientBuildPath, 'index.html'));
 });
 

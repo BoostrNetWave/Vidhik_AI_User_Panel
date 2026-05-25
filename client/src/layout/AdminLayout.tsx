@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { Button } from "@/components/ui/button"
 import { 
-    Settings, 
     LayoutDashboard, 
     Users, 
     CreditCard, 
@@ -14,7 +13,7 @@ import {
     Activity
 } from "lucide-react"
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Logo } from '@/components/brand/Logo';
+
 
 interface AdminLayoutProps {
     children: React.ReactNode;
