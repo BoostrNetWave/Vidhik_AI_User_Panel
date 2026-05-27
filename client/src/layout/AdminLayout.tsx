@@ -10,7 +10,8 @@ import {
     ChevronLeft, 
     ChevronRight,
     LogOut,
-    Activity
+    Activity,
+    Briefcase
 } from "lucide-react"
 import { useLocation, useNavigate } from 'react-router-dom';
 
@@ -33,6 +34,7 @@ export default function AdminLayout({ children, userNav }: AdminLayoutProps) {
         { path: '/admin', label: 'Admin Overview', icon: LayoutDashboard },
         { path: '/admin/content', label: 'Website Content', icon: Globe },
         { path: '/admin/lawyers', label: 'Lawyer Approval', icon: Gavel },
+        { path: '/admin/cases', label: 'Cases & Payouts', icon: Briefcase },
         { path: '/admin/users', label: 'User Management', icon: Users },
         { path: '/admin/payments', label: 'Financials', icon: CreditCard },
         { path: '/admin/system', label: 'System Health', icon: Activity },

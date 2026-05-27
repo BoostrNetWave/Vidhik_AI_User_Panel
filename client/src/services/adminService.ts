@@ -29,5 +29,20 @@ export const adminService = {
     async verifyUser(id: string) {
         const response = await api.post(`/admin/verify-user/${id}`);
         return response.data;
+    },
+
+    async getAllCases() {
+        const response = await api.get('/admin/cases');
+        return response.data;
+    },
+
+    async approvePayout(caseId: string, milestoneIndex: number) {
+        const response = await api.post(`/admin/cases/${caseId}/milestones/${milestoneIndex}/approve-payout`);
+        return response.data;
+    },
+
+    async rejectPayout(caseId: string, milestoneIndex: number) {
+        const response = await api.post(`/admin/cases/${caseId}/milestones/${milestoneIndex}/reject-payout`);
+        return response.data;
     }
 };

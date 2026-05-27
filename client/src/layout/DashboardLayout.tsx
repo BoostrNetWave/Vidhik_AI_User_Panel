@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Button } from "@/components/ui/button"
-import { Mail, Settings, LayoutDashboard, FileText, CheckSquare, Folder, MessageSquare, ChevronLeft, ChevronRight, Users, CreditCard } from "lucide-react"
+import { Mail, Settings, LayoutDashboard, FileText, CheckSquare, Folder, MessageSquare, ChevronLeft, ChevronRight, Users, CreditCard, Briefcase } from "lucide-react"
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Notifications } from "@/components/dashboard/Notifications"
 import { DashboardSearch } from "@/components/dashboard/DashboardSearch"
@@ -116,6 +116,19 @@ export default function DashboardLayout({ children, userNav }: DashboardLayoutPr
                     >
                         <Users className="h-5 w-5 shrink-0" />
                         {!isCollapsed && <span className="font-medium text-sm">Lawyer List</span>}
+                    </Button>
+
+                    <Button
+                        variant="ghost"
+                        className={`w-full justify-start gap-3 h-10 px-3 rounded-md transition-colors ${location.pathname === '/cases'
+                            ? 'bg-primary/10 text-primary hover:bg-primary/20'
+                            : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+                            } ${isCollapsed ? 'justify-center px-0' : ''}`}
+                        title={isCollapsed ? "My Cases" : ""}
+                        onClick={() => navigate('/cases')}
+                    >
+                        <Briefcase className="h-5 w-5 shrink-0" />
+                        {!isCollapsed && <span className="font-medium text-sm">My Cases</span>}
                     </Button>
 
                     <Button

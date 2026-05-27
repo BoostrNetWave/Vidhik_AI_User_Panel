@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { 
     ArrowLeft, 
@@ -20,76 +20,113 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-
-const lawyers = [
-    {
-        id: 1,
-        name: "Adv. Rajesh Kumar",
-        specialization: "Corporate Law",
-        price: "₹2,500/session",
-        numericPrice: 2500
-    },
-    {
-        id: 2,
-        name: "Adv. Priya Singh",
-        specialization: "Family & Civil Law",
-        price: "₹2,000/session",
-        numericPrice: 2000
-    },
-    {
-        id: 3,
-        name: "Adv. Amit Verma",
-        specialization: "Criminal Law",
-        price: "₹3,500/session",
-        numericPrice: 3500
-    },
-    {
-        id: 4,
-        name: "Adv. Neha Gupta",
-        specialization: "Intellectual Property",
-        price: "₹1,800/session",
-        numericPrice: 1800
-    }
-];
+import { lawyerService } from '@/services/lawyerService';
+import { caseService } from '@/services/caseService';
 
 export default function LawyerBooking() {
     const navigate = useNavigate();
-    const { id } = useParams();
+    const { id } = useParams<{ id: string }>();
     const [paymentMethod, setPaymentMethod] = useState<'card' | 'upi' | 'netbanking'>('card');
     
-    // Form States
+    // Lawyer & Booking State
+    const [lawyer, setLawyer] = useState<any>(null);
+    const [loading, setLoading] = useState(true);
+    const [isBooking, setIsBooking] = useState(false);
+    
+    // Case Info State
+    const [caseTitle, setCaseTitle] = useState('');
+    const [description, setDescription] = useState('');
+    
+    // Form States (Bypassed but kept for UI visual fidelity)
     const [cardData, setCardData] = useState({ name: '', number: '', expiryMonth: '', expiryYear: '', cvv: '' });
     const [upiId, setUpiId] = useState('');
     const [selectedBank, setSelectedBank] = useState('State Bank of India');
     const [errors, setErrors] = useState<Record<string, string>>({});
 
-    const lawyer = lawyers.find(l => l.id === Number(id)) || lawyers[0];
+    useEffect(() => {
+        const fetchLawyer = async () => {
+            if (!id) return;
+            try {
+                const data = await lawyerService.getPublicLawyerById(id);
+                setLawyer(data);
+            } catch (error) {
+                console.error("Failed to fetch lawyer details", error);
+                toast.error("Failed to load booking details");
+            } finally {
+                setLoading(false);
+            }
+        };
+        fetchLawyer();
+    }, [id]);
 
-    const validateForm = () => {
+    if (loading) {
+        return (
+            <div className="min-h-screen bg-background flex flex-col font-sans items-center justify-center gap-4">
+                <div className="h-10 w-10 border-4 border-violet-700 border-t-transparent rounded-full animate-spin"></div>
+                <p className="text-muted-foreground font-semibold">Loading booking page...</p>
+            </div>
+        );
+    }
+
+    if (!lawyer) {
+        return (
+            <div className="min-h-screen bg-background flex flex-col font-sans items-center justify-center gap-4">
+                <h3 className="text-xl font-bold text-foreground">Lawyer profile not found</h3>
+                <Button onClick={() => navigate('/lawyers')} className="bg-primary text-primary-foreground font-bold rounded-xl">
+                    Back to Lawyer List
+                </Button>
+            </div>
+        );
+    }
+
+    const hourlyRate = lawyer.hourlyRate || 1000;
+    const serviceFee = 150;
+    const gst = hourlyRate * 0.18;
+    const totalAmount = hourlyRate + serviceFee + gst;
+
+    const handlePayment = async () => {
         const newErrors: Record<string, string> = {};
-
-        if (paymentMethod === 'card') {
-            if (!cardData.name.trim()) newErrors.name = "Cardholder name is required";
-            if (!/^\d{16}$/.test(cardData.number.replace(/\s/g, ''))) newErrors.number = "Enter a valid 16-digit card number";
-            if (!cardData.expiryMonth) newErrors.expiry = "Month required";
-            if (!cardData.expiryYear) newErrors.expiry = "Year required";
-            if (!/^\d{3}$/.test(cardData.cvv)) newErrors.cvv = "Enter 3-digit CVV";
-        } else if (paymentMethod === 'upi') {
-            if (!upiId.includes('@')) newErrors.upi = "Enter a valid UPI ID (e.g., name@upi)";
+        if (!caseTitle.trim()) {
+            newErrors.caseTitle = "Case title / request topic is required";
+        }
+        if (!description.trim()) {
+            newErrors.description = "Case description of legal needs is required";
         }
 
-        setErrors(newErrors);
-        return Object.keys(newErrors).length === 0;
-    };
+        if (Object.keys(newErrors).length > 0) {
+            setErrors(newErrors);
+            toast.error("Please fill in your case details before proceeding");
+            return;
+        }
 
-    const handlePayment = () => {
-        if (validateForm()) {
-            toast.success("Processing payment...");
-            setTimeout(() => {
-                navigate('/lawyers/booking-success');
-            }, 1500);
-        } else {
-            toast.error("Please fix the errors before proceeding");
+        setErrors({});
+        setIsBooking(true);
+
+        try {
+            toast.info("Submitting booking request...");
+            
+            // Invoke the case creation/hiring endpoint on the user backend
+            await caseService.hireLawyer({
+                lawyerId: lawyer._id,
+                title: caseTitle.trim(),
+                description: description.trim(),
+                totalFee: totalAmount
+            });
+
+            toast.success("Consultation Booked Successfully!");
+            
+            // Redirect to success page and pass lawyer name and specialization via router state
+            navigate('/lawyers/booking-success', {
+                state: {
+                    lawyerName: lawyer.fullName,
+                    specialization: lawyer.expertise || "General Practice"
+                }
+            });
+        } catch (error: any) {
+            console.error("Booking error:", error);
+            toast.error(error.response?.data?.message || "Failed to register case booking");
+        } finally {
+            setIsBooking(false);
         }
     };
 
@@ -112,7 +149,7 @@ export default function LawyerBooking() {
             <main className="flex-1 max-w-6xl mx-auto w-full px-4 py-12">
                 <div className="mb-8">
                     <button 
-                        onClick={() => navigate(`/lawyers/${id}`)} 
+                        onClick={() => navigate(`/lawyers/${lawyer._id}`)} 
                         className="flex items-center gap-2 text-sm font-bold text-primary hover:underline transition-all mb-6 group"
                     >
                         <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
@@ -123,11 +160,74 @@ export default function LawyerBooking() {
 
                 <div className="flex flex-col lg:flex-row gap-8 items-start">
                     
-                    {/* Left Column - Payment Information */}
+                    {/* Left Column - Request Info & Payment Bypass */}
                     <div className="flex-1 space-y-6 w-full">
+                        {/* Test Mode Banner */}
+                        <div className="bg-amber-500/10 border border-amber-500/20 rounded-2xl p-5 flex items-start gap-4 shadow-sm">
+                            <AlertCircle className="h-6 w-6 text-amber-600 shrink-0 mt-0.5" />
+                            <div>
+                                <p className="text-sm font-bold text-amber-800 uppercase tracking-wider">Test Booking Mode Active</p>
+                                <p className="text-xs text-amber-700/90 mt-1 font-medium leading-relaxed">
+                                    This environment is configured for testing case management workflows. Clicking <strong>Confirm & Pay</strong> will immediately create a real case registry record linked to this lawyer in MongoDB, completely bypassing payment authorization.
+                                </p>
+                            </div>
+                        </div>
+
+                        {/* Legal Case Details Card */}
                         <Card className="rounded-2xl border-border bg-card shadow-sm">
+                            <CardContent className="p-8 space-y-6">
+                                <div className="flex items-center gap-3 pb-4 border-b border-border">
+                                    <div className="h-10 w-10 rounded-xl bg-violet-50 flex items-center justify-center text-violet-700">
+                                        <Gavel className="h-5 w-5" />
+                                    </div>
+                                    <div>
+                                        <h2 className="text-xl font-bold text-foreground">Legal Request Details</h2>
+                                        <p className="text-xs text-muted-foreground">Describe your legal requirements to set up the case roadmap.</p>
+                                    </div>
+                                </div>
+
+                                <div className="space-y-4">
+                                    <div className="space-y-2">
+                                        <Label htmlFor="case-title" className="font-bold text-sm">Case Title / Topic</Label>
+                                        <Input 
+                                            id="case-title"
+                                            placeholder="e.g. Property Title Verification, LLC Registration, NDA Drafting" 
+                                            className={`h-12 rounded-xl ${errors.caseTitle ? 'border-destructive ring-destructive/20' : ''}`}
+                                            value={caseTitle}
+                                            onChange={(e) => setCaseTitle(e.target.value)}
+                                        />
+                                        {errors.caseTitle && (
+                                            <p className="text-xs font-bold text-destructive flex items-center gap-1">
+                                                <AlertCircle className="h-3 w-3" /> {errors.caseTitle}
+                                            </p>
+                                        )}
+                                    </div>
+
+                                    <div className="space-y-2">
+                                        <Label htmlFor="case-desc" className="font-bold text-sm">Brief Description of Legal Needs</Label>
+                                        <textarea 
+                                            id="case-desc"
+                                            placeholder="Describe the background of your dispute, what stages/steps you expect, or specific legal questions you have..." 
+                                            className={`w-full bg-background border rounded-xl p-4 text-sm font-medium outline-none focus:ring-1 focus:ring-ring min-h-[140px] ${
+                                                errors.description ? 'border-destructive focus:ring-destructive' : 'border-input'
+                                            }`}
+                                            value={description}
+                                            onChange={(e) => setDescription(e.target.value)}
+                                        />
+                                        {errors.description && (
+                                            <p className="text-xs font-bold text-destructive flex items-center gap-1">
+                                                <AlertCircle className="h-3 w-3" /> {errors.description}
+                                            </p>
+                                        )}
+                                    </div>
+                                </div>
+                            </CardContent>
+                        </Card>
+
+                        {/* Payment Selection Layout (Visible to preserve layout fidelity) */}
+                        <Card className="rounded-2xl border-border bg-card shadow-sm opacity-90">
                             <CardContent className="p-8">
-                                <h2 className="text-xl font-bold text-foreground mb-8">Payment Method</h2>
+                                <h2 className="text-xl font-bold text-foreground mb-8">Select Payment Method (Simulation)</h2>
                                 
                                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
                                     <button 
@@ -159,22 +259,21 @@ export default function LawyerBooking() {
                                             <Label className="font-bold">Cardholder Name</Label>
                                             <Input 
                                                 placeholder="John Doe" 
-                                                className={`h-12 rounded-xl ${errors.name ? 'border-destructive ring-destructive/20' : ''}`}
+                                                className="h-12 rounded-xl"
                                                 value={cardData.name}
                                                 onChange={(e) => {
                                                     const val = e.target.value.replace(/[^a-zA-Z\s]/g, '');
                                                     setCardData({...cardData, name: val});
                                                 }}
                                             />
-                                            {errors.name && <p className="text-xs font-bold text-destructive flex items-center gap-1"><AlertCircle className="h-3 w-3" /> {errors.name}</p>}
                                         </div>
 
                                         <div className="space-y-2">
                                             <Label className="font-bold">Card Number</Label>
                                             <div className="relative">
                                                 <Input 
-                                                    placeholder="0000 0000 0000 0000" 
-                                                    className={`h-12 rounded-xl pr-12 ${errors.number ? 'border-destructive ring-destructive/20' : ''}`}
+                                                    placeholder="4111 2222 3333 4444" 
+                                                    className="h-12 rounded-xl pr-12"
                                                     maxLength={19}
                                                     value={cardData.number}
                                                     onChange={(e) => {
@@ -184,7 +283,6 @@ export default function LawyerBooking() {
                                                 />
                                                 <CreditCard className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
                                             </div>
-                                            {errors.number && <p className="text-xs font-bold text-destructive flex items-center gap-1"><AlertCircle className="h-3 w-3" /> {errors.number}</p>}
                                         </div>
 
                                         <div className="grid grid-cols-2 gap-6">
@@ -192,7 +290,7 @@ export default function LawyerBooking() {
                                                 <Label className="font-bold">Expiry Date</Label>
                                                 <div className="flex gap-2">
                                                     <select 
-                                                        className={`flex-1 h-12 bg-background border rounded-xl px-3 text-sm font-medium outline-none focus:ring-1 focus:ring-ring ${errors.expiry ? 'border-destructive' : 'border-input'}`}
+                                                        className="flex-1 h-12 bg-background border border-input rounded-xl px-3 text-sm font-medium outline-none focus:ring-1 focus:ring-ring"
                                                         value={cardData.expiryMonth}
                                                         onChange={(e) => setCardData({...cardData, expiryMonth: e.target.value})}
                                                     >
@@ -203,18 +301,17 @@ export default function LawyerBooking() {
                                                         })}
                                                     </select>
                                                     <select 
-                                                        className={`flex-1 h-12 bg-background border rounded-xl px-3 text-sm font-medium outline-none focus:ring-1 focus:ring-ring ${errors.expiry ? 'border-destructive' : 'border-input'}`}
+                                                        className="flex-1 h-12 bg-background border border-input rounded-xl px-3 text-sm font-medium outline-none focus:ring-1 focus:ring-ring"
                                                         value={cardData.expiryYear}
                                                         onChange={(e) => setCardData({...cardData, expiryYear: e.target.value})}
                                                     >
                                                         <option value="" disabled>YYYY</option>
-                                                        <option value="2024">2024</option>
-                                                        <option value="2025">2025</option>
                                                         <option value="2026">2026</option>
                                                         <option value="2027">2027</option>
+                                                        <option value="2028">2028</option>
+                                                        <option value="2029">2029</option>
                                                     </select>
                                                 </div>
-                                                {errors.expiry && <p className="text-xs font-bold text-destructive flex items-center gap-1"><AlertCircle className="h-3 w-3" /> {errors.expiry}</p>}
                                             </div>
                                             <div className="space-y-2">
                                                 <Label className="font-bold">CVV</Label>
@@ -222,11 +319,10 @@ export default function LawyerBooking() {
                                                     placeholder="123" 
                                                     type="password" 
                                                     maxLength={3}
-                                                    className={`h-12 rounded-xl ${errors.cvv ? 'border-destructive ring-destructive/20' : ''}`}
+                                                    className="h-12 rounded-xl"
                                                     value={cardData.cvv}
                                                     onChange={(e) => setCardData({...cardData, cvv: e.target.value.replace(/\D/g, '')})}
                                                 />
-                                                {errors.cvv && <p className="text-xs font-bold text-destructive flex items-center gap-1"><AlertCircle className="h-3 w-3" /> {errors.cvv}</p>}
                                             </div>
                                         </div>
                                     </div>
@@ -238,15 +334,11 @@ export default function LawyerBooking() {
                                             <Label className="font-bold">Enter UPI ID</Label>
                                             <Input 
                                                 placeholder="username@upi" 
-                                                className={`h-12 rounded-xl ${errors.upi ? 'border-destructive ring-destructive/20' : ''}`}
+                                                className="h-12 rounded-xl"
                                                 value={upiId}
                                                 onChange={(e) => setUpiId(e.target.value)}
                                             />
-                                            {errors.upi ? (
-                                                <p className="text-xs font-bold text-destructive flex items-center gap-1"><AlertCircle className="h-3 w-3" /> {errors.upi}</p>
-                                            ) : (
-                                                <p className="text-[10px] text-muted-foreground font-medium">A payment request will be sent to your UPI app.</p>
-                                            )}
+                                            <p className="text-[10px] text-muted-foreground font-medium">Payment simulations will automatically complete.</p>
                                         </div>
                                     </div>
                                 )}
@@ -271,9 +363,9 @@ export default function LawyerBooking() {
                                 )}
 
                                 <div className="mt-8 flex items-center space-x-3">
-                                    <Checkbox id="save-payment" className="rounded-sm" />
+                                    <Checkbox id="save-payment" className="rounded-sm" defaultChecked />
                                     <label htmlFor="save-payment" className="text-sm font-medium text-muted-foreground leading-none cursor-pointer">
-                                        Save payment details for future bookings
+                                        Save billing details for quick booking
                                     </label>
                                 </div>
                             </CardContent>
@@ -303,8 +395,8 @@ export default function LawyerBooking() {
                                             <User className="h-7 w-7 text-gray-400" />
                                         </div>
                                         <div className="space-y-1">
-                                            <p className="font-black text-gray-900 text-lg tracking-tight leading-none">{lawyer.name}</p>
-                                            <p className="text-[10px] text-primary font-bold uppercase tracking-widest">{lawyer.specialization}</p>
+                                            <p className="font-black text-gray-900 text-lg tracking-tight leading-none">{lawyer.fullName}</p>
+                                            <p className="text-[10px] text-primary font-bold uppercase tracking-widest">{lawyer.expertise || "General Practice"}</p>
                                         </div>
                                     </div>
                                     
@@ -313,49 +405,50 @@ export default function LawyerBooking() {
                                             <div className="h-8 w-8 rounded-lg bg-gray-50 flex items-center justify-center border border-gray-100">
                                                 <Calendar className="w-4 h-4 text-gray-400" />
                                             </div>
-                                            <span>Monday, 24 March 2024</span>
+                                            <span>Session Scheduled Instantly</span>
                                         </div>
                                         <div className="flex items-center gap-4 text-xs font-bold text-gray-600">
                                             <div className="h-8 w-8 rounded-lg bg-gray-50 flex items-center justify-center border border-gray-100">
                                                 <Clock className="w-4 h-4 text-gray-400" />
                                             </div>
-                                            <span>10:30 AM - 11:00 AM (IST)</span>
+                                            <span>30-Min Priority Video Call</span>
                                         </div>
                                     </div>
                                 </div>
 
                                 <div className="space-y-5 py-10 border-b border-gray-100">
                                     <div className="flex justify-between items-center text-[10px] font-black uppercase tracking-widest text-gray-400">
-                                        <p>Consultation</p>
-                                        <p className="text-gray-900">{lawyer.price}</p>
+                                        <p>Consultation (1 hr)</p>
+                                        <p className="text-gray-900">₹{hourlyRate.toLocaleString()}</p>
                                     </div>
                                     <div className="flex justify-between items-center text-[10px] font-black uppercase tracking-widest text-gray-400">
-                                        <p>Service Fee</p>
-                                        <p className="text-gray-900">₹150.00</p>
+                                        <p>Vidhik Platform Fee</p>
+                                        <p className="text-gray-900">₹{serviceFee.toLocaleString()}</p>
                                     </div>
                                     <div className="flex justify-between items-center text-[10px] font-black uppercase tracking-widest text-gray-400">
                                         <p>Taxes (GST 18%)</p>
-                                        <p className="text-gray-900">₹{(lawyer.numericPrice * 0.18).toFixed(2)}</p>
+                                        <p className="text-gray-900">₹{gst.toFixed(2)}</p>
                                     </div>
                                 </div>
 
                                 <div className="py-12">
                                     <p className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 mb-4">Total Amount</p>
                                     <p className="text-5xl font-black text-gray-900 tracking-tighter">
-                                        ₹{(lawyer.numericPrice + 150 + (lawyer.numericPrice * 0.18)).toLocaleString()}
+                                        ₹{Math.round(totalAmount).toLocaleString()}
                                     </p>
                                 </div>
 
                                 <Button 
-                                    className="w-full h-16 rounded-2xl bg-violet-700 text-white hover:bg-violet-800 active:bg-violet-900 disabled:bg-violet-700 disabled:text-white shadow-2xl shadow-gray-200 transition-all font-black text-base flex items-center justify-center gap-3 uppercase tracking-widest active:scale-[0.98]"
+                                    className="w-full h-16 rounded-2xl bg-violet-700 text-white hover:bg-violet-800 active:bg-violet-900 disabled:bg-violet-400 shadow-2xl transition-all font-black text-base flex items-center justify-center gap-3 uppercase tracking-widest active:scale-[0.98]"
                                     onClick={handlePayment}
+                                    disabled={isBooking}
                                 >
                                     <Lock className="w-4 h-4" />
-                                    Confirm & Pay
+                                    {isBooking ? "Registering Case..." : "Confirm & Book"}
                                 </Button>
 
                                 <p className="text-center text-[10px] font-medium text-muted-foreground mt-6 leading-relaxed px-4">
-                                    By confirming, you agree to the <a href="#" className="underline hover:text-foreground transition-colors">Booking Policy</a> and <a href="#" className="underline hover:text-foreground transition-colors">Terms of Service</a>.
+                                    By confirming, you agree to setup a case registry with the lawyer in accordance with the platform's booking terms.
                                 </p>
                             </CardContent>
                         </Card>
@@ -364,7 +457,7 @@ export default function LawyerBooking() {
             </main>
 
             <footer className="py-8 text-center text-[10px] tracking-wide font-medium text-muted-foreground mt-auto">
-                © 2024 Vidhik A.I. Secure payments powered by Vidhik Gateway.
+                © 2026 Vidhik A.I. Central Case Gateway.
             </footer>
         </div>
     );

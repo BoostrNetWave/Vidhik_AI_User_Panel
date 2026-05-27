@@ -1,4 +1,4 @@
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { 
     CheckCircle2, 
     Calendar, 
@@ -16,6 +16,13 @@ import { Card, CardContent } from "@/components/ui/card";
 
 export default function LawyerBookingSuccess() {
     const navigate = useNavigate();
+    const location = useLocation();
+
+    // Retrieve passed lawyer details from checkout navigation
+    const { lawyerName, specialization } = (location.state as any) || {
+        lawyerName: "Your Legal Counsel",
+        specialization: "Legal Expert"
+    };
 
     return (
         <div className="min-h-screen bg-[#F8F9FA] flex flex-col font-sans">
@@ -55,9 +62,9 @@ export default function LawyerBookingSuccess() {
                             </div>
                             <div className="space-y-1.5">
                                 <h3 className="text-xl font-bold text-gray-900 flex items-center gap-2">
-                                    Video Call with Adv. Sarah Jenkins
+                                    Video Call with {lawyerName}
                                 </h3>
-                                <p className="text-[#7C3AED] font-bold text-xs uppercase tracking-wider">Senior Corporate Counsel</p>
+                                <p className="text-[#7C3AED] font-bold text-xs uppercase tracking-wider">{specialization}</p>
                                 <div className="flex items-center gap-2 text-gray-400 text-[11px] font-bold">
                                     <Video className="h-3.5 w-3.5" />
                                     Link will be shared 15 mins before call
@@ -73,7 +80,7 @@ export default function LawyerBookingSuccess() {
                                 </div>
                                 <div>
                                     <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Date</p>
-                                    <p className="text-sm font-bold text-gray-900 tracking-tight">Tuesday, June 13</p>
+                                    <p className="text-sm font-bold text-gray-900 tracking-tight">Today</p>
                                 </div>
                             </div>
                             <div className="bg-[#F8F9FA] rounded-2xl p-6 flex items-center gap-4 border border-gray-50">
@@ -82,7 +89,7 @@ export default function LawyerBookingSuccess() {
                                 </div>
                                 <div>
                                     <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Time</p>
-                                    <p className="text-sm font-bold text-gray-900 tracking-tight">9:00 AM - 10:00 AM</p>
+                                    <p className="text-sm font-bold text-gray-900 tracking-tight">Instant Priority Consultation</p>
                                 </div>
                             </div>
                         </div>
@@ -98,7 +105,7 @@ export default function LawyerBookingSuccess() {
                     <Button 
                         variant="outline" 
                         className="flex-1 border-gray-200 text-gray-700 bg-white hover:bg-gray-50 rounded-2xl h-14 font-bold text-base shadow-sm gap-3"
-                        onClick={() => navigate('/lawyers')}
+                        onClick={() => navigate('/cases')}
                     >
                         <LayoutDashboard className="h-5 w-5" />
                         Go to My Consultations
@@ -124,7 +131,7 @@ export default function LawyerBookingSuccess() {
                         </li>
                         <li className="flex items-start gap-4">
                             <span className="flex items-center justify-center h-6 w-6 rounded-full bg-white text-[#7C3AED] font-black text-[10px] shrink-0 shadow-sm border border-indigo-100">03.</span>
-                            <p className="text-sm text-gray-600 font-medium leading-relaxed">Have a notepad ready to jot down the advice and next steps shared by Adv. Sarah.</p>
+                            <p className="text-sm text-gray-600 font-medium leading-relaxed">Open the roadmap on "My Cases" to track updates shared by your lawyer.</p>
                         </li>
                     </ul>
                 </div>

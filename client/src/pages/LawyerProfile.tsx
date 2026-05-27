@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { 
     User, 
@@ -21,44 +21,57 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import { lawyerService } from '@/services/lawyerService';
+import { toast } from "sonner";
 
 export default function LawyerProfile() {
     const navigate = useNavigate();
-    useParams();
+    const { id } = useParams<{ id: string }>();
     const [activeTab, setActiveTab] = useState('about');
+    const [lawyer, setLawyer] = useState<any>(null);
+    const [loading, setLoading] = useState(true);
 
-    // In a real app, you'd fetch this by ID
-    const lawyer = {
-        id: 1,
-        name: "Adv. Rajesh Kumar",
-        specialization: "Corporate Law",
-        experience: "15+ Years",
-        rating: 4.9,
-        reviews: 124,
-        location: "New Delhi, India",
-        status: "Online",
-        verified: true,
-        price: "₹2,500/session",
-        about: "Expert in Corporate Law with over 15 years of experience in handling complex mergers, acquisitions, and regulatory compliance. Have successfully represented Fortune 500 companies in high-stakes legal matters. Committed to providing strategic and results-driven legal counsel.",
-        education: [
-            { degree: "LL.M. in Corporate Law", institution: "National Law School of India University", year: "2010" },
-            { degree: "LL.B.", institution: "Faculty of Law, University of Delhi", year: "2008" }
-        ],
-        expertise: [
-            "Mergers & Acquisitions",
-            "Contract Negotiation",
-            "Regulatory Compliance",
-            "Intellectual Property Strategy",
-            "Corporate Governance",
-            "Risk Management"
-        ],
-        languages: ["English", "Hindi", "Punjabi"],
-        memberships: [
-            "Bar Council of Delhi",
-            "Supreme Court Bar Association",
-            "International Bar Association"
-        ]
-    };
+    useEffect(() => {
+        const fetchLawyer = async () => {
+            if (!id) return;
+            try {
+                const data = await lawyerService.getPublicLawyerById(id);
+                setLawyer(data);
+            } catch (error) {
+                console.error("Failed to fetch lawyer details", error);
+                toast.error("Failed to load lawyer profile");
+            } finally {
+                setLoading(false);
+            }
+        };
+        fetchLawyer();
+    }, [id]);
+
+    if (loading) {
+        return (
+            <DashboardLayout userNav={<UserNav />}>
+                <div className="flex flex-col items-center justify-center min-h-[50vh] gap-4">
+                    <div className="h-10 w-10 border-4 border-violet-700 border-t-transparent rounded-full animate-spin"></div>
+                    <p className="text-muted-foreground font-semibold">Loading lawyer profile...</p>
+                </div>
+            </DashboardLayout>
+        );
+    }
+
+    if (!lawyer) {
+        return (
+            <DashboardLayout userNav={<UserNav />}>
+                <div className="flex flex-col items-center justify-center min-h-[50vh] gap-4">
+                    <h3 className="text-xl font-bold text-foreground">Lawyer profile not found</h3>
+                    <Button onClick={() => navigate('/lawyers')} className="bg-primary text-primary-foreground font-bold rounded-xl">
+                        Back to Lawyer List
+                    </Button>
+                </div>
+            </DashboardLayout>
+        );
+    }
+
+    const isOnline = (lawyer.status || "Online") === "Online";
 
     return (
         <DashboardLayout userNav={<UserNav />}>
@@ -83,9 +96,9 @@ export default function LawyerProfile() {
                                     <User className="h-16 w-16 text-muted-foreground/40" />
                                 </div>
                                 <div className={`absolute -bottom-1 -right-1 h-6 w-6 rounded-full border-4 border-card flex items-center justify-center ${
-                                    lawyer.status === "Online" ? "bg-green-500" : "bg-gray-300"
+                                    isOnline ? "bg-green-500" : "bg-gray-300"
                                 }`}>
-                                    {lawyer.status === "Online" && (
+                                    {isOnline && (
                                         <span className="absolute inset-0 rounded-full bg-green-500 animate-ping opacity-75"></span>
                                     )}
                                 </div>
@@ -95,12 +108,12 @@ export default function LawyerProfile() {
                                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                                     <div className="space-y-1">
                                         <div className="flex items-center gap-2">
-                                            <h1 className="text-3xl font-bold text-foreground tracking-tight">{lawyer.name}</h1>
-                                            {lawyer.verified && (
+                                            <h1 className="text-3xl font-bold text-foreground tracking-tight">{lawyer.fullName}</h1>
+                                            {lawyer.isVerified && (
                                                 <ShieldCheck className="h-6 w-6 text-primary" />
                                             )}
                                         </div>
-                                        <p className="text-primary font-semibold uppercase tracking-wider text-xs">{lawyer.specialization}</p>
+                                        <p className="text-primary font-semibold uppercase tracking-wider text-xs">{lawyer.expertise || "General Practice"}</p>
                                     </div>
                                     <div className="flex items-center gap-3">
                                         <Button variant="outline" size="icon" className="rounded-xl border-border">
@@ -115,16 +128,16 @@ export default function LawyerProfile() {
                                 <div className="flex flex-wrap gap-6 text-sm text-muted-foreground font-medium">
                                     <div className="flex items-center gap-2">
                                         <Star className="h-4 w-4 text-primary fill-primary" />
-                                        <span className="text-foreground font-bold">{lawyer.rating}</span>
-                                        <span>({lawyer.reviews} Reviews)</span>
+                                        <span className="text-foreground font-bold">{lawyer.rating || "5.0"}</span>
+                                        <span>({lawyer.reviews || "0"} Reviews)</span>
                                     </div>
                                     <div className="flex items-center gap-2">
                                         <Clock className="h-4 w-4" />
-                                        <span>{lawyer.experience} Experience</span>
+                                        <span>{lawyer.experience || "10+"} Experience</span>
                                     </div>
                                     <div className="flex items-center gap-2">
                                         <MapPin className="h-4 w-4" />
-                                        <span>{lawyer.location}</span>
+                                        <span>{lawyer.location || "Remote"}</span>
                                     </div>
                                 </div>
                             </div>
@@ -157,8 +170,8 @@ export default function LawyerProfile() {
                                 <div className="space-y-6 animate-in fade-in duration-300">
                                     <div className="bg-card border border-border rounded-2xl p-8 shadow-sm">
                                         <h3 className="text-lg font-bold text-foreground mb-4">Professional Bio</h3>
-                                        <p className="text-muted-foreground leading-relaxed">
-                                            {lawyer.about}
+                                        <p className="text-muted-foreground leading-relaxed whitespace-pre-line">
+                                            {lawyer.bio || "No professional biography provided yet."}
                                         </p>
                                     </div>
                                     
@@ -169,7 +182,7 @@ export default function LawyerProfile() {
                                                 <h4 className="font-bold">Languages</h4>
                                             </div>
                                             <div className="flex flex-wrap gap-2">
-                                                {lawyer.languages.map(lang => (
+                                                {(lawyer.languages && lawyer.languages.length > 0 ? lawyer.languages : ["English", "Hindi"]).map((lang: string) => (
                                                     <Badge key={lang} variant="secondary" className="font-semibold">{lang}</Badge>
                                                 ))}
                                             </div>
@@ -193,7 +206,7 @@ export default function LawyerProfile() {
                                     <div className="bg-card border border-border rounded-2xl p-8 shadow-sm">
                                         <h3 className="text-lg font-bold text-foreground mb-6">Core Practice Areas</h3>
                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-y-4 gap-x-8">
-                                            {lawyer.expertise.map(exp => (
+                                            {(lawyer.practiceAreas && lawyer.practiceAreas.length > 0 ? lawyer.practiceAreas : [lawyer.expertise || "General Practice"]).map((exp: string) => (
                                                 <div key={exp} className="flex items-center gap-3">
                                                     <CheckCircle2 className="h-5 w-5 text-primary" />
                                                     <span className="text-sm font-medium text-muted-foreground">{exp}</span>
@@ -212,13 +225,17 @@ export default function LawyerProfile() {
                                             Education
                                         </h3>
                                         <div className="space-y-6">
-                                            {lawyer.education.map((edu, idx) => (
-                                                <div key={idx} className="relative pl-8 before:absolute before:left-0 before:top-2 before:bottom-0 before:w-0.5 before:bg-border last:before:hidden">
-                                                    <div className="absolute left-[-4px] top-2 h-2 w-2 rounded-full bg-primary"></div>
-                                                    <h4 className="font-bold text-foreground">{edu.degree}</h4>
-                                                    <p className="text-sm text-muted-foreground">{edu.institution} • {edu.year}</p>
-                                                </div>
-                                            ))}
+                                            {lawyer.education && lawyer.education.length > 0 ? (
+                                                lawyer.education.map((edu: any, idx: number) => (
+                                                    <div key={idx} className="relative pl-8 before:absolute before:left-0 before:top-2 before:bottom-0 before:w-0.5 before:bg-border last:before:hidden">
+                                                        <div className="absolute left-[-4px] top-2 h-2 w-2 rounded-full bg-primary"></div>
+                                                        <h4 className="font-bold text-foreground">{edu.degree}</h4>
+                                                        <p className="text-sm text-muted-foreground">{edu.school || edu.institution || "N/A"} • {edu.year || "N/A"}</p>
+                                                    </div>
+                                                ))
+                                            ) : (
+                                                <p className="text-sm text-muted-foreground">Education details not listed.</p>
+                                            )}
                                         </div>
                                     </div>
 
@@ -228,7 +245,7 @@ export default function LawyerProfile() {
                                             Memberships
                                         </h3>
                                         <div className="space-y-4">
-                                            {lawyer.memberships.map(member => (
+                                            {(lawyer.memberships && lawyer.memberships.length > 0 ? lawyer.memberships : ["Bar Council of India", "Supreme Court Bar Association"]).map((member: string) => (
                                                 <div key={member} className="flex items-center gap-3 text-sm font-medium text-muted-foreground">
                                                     <div className="h-1.5 w-1.5 rounded-full bg-primary/40"></div>
                                                     {member}
@@ -241,7 +258,7 @@ export default function LawyerProfile() {
                         </div>
                     </div>
 
-                    {/* Right Column: Booking Card - Refactored as requested */}
+                    {/* Right Column: Booking Card */}
                     <div className="space-y-6">
                         <Card className="rounded-3xl border border-border bg-card shadow-lg sticky top-8">
                             <CardHeader className="pb-4">
@@ -251,7 +268,7 @@ export default function LawyerProfile() {
                             <CardContent className="space-y-6">
                                 <div className="bg-secondary/50 rounded-2xl p-6 border border-border">
                                     <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest mb-1">Consultation Fee</p>
-                                    <p className="text-3xl font-black text-foreground">{lawyer.price}</p>
+                                    <p className="text-3xl font-black text-foreground">₹{lawyer.hourlyRate || 1000}/hr</p>
                                     <p className="text-[10px] text-muted-foreground mt-2 font-medium leading-relaxed">
                                         Includes a 30-minute video/audio session and initial document review.
                                     </p>
@@ -280,7 +297,7 @@ export default function LawyerProfile() {
 
                                 <Button 
                                     className="w-full bg-violet-700 text-white hover:bg-violet-800 rounded-2xl h-14 font-bold text-base shadow-sm transition-all active:scale-[0.98]"
-                                    onClick={() => navigate(`/lawyers/booking/${lawyer.id}`)}
+                                    onClick={() => navigate(`/lawyers/booking/${lawyer._id}`)}
                                 >
                                     Proceed to Booking
                                 </Button>

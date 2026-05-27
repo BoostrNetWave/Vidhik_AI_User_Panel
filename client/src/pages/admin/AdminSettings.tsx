@@ -16,7 +16,11 @@ import {
     Plus,
     Trash2,
     ChevronDown,
-    ChevronUp
+    ChevronUp,
+    Briefcase,
+    Coins,
+    FileText,
+    ExternalLink
 } from "lucide-react";
 
 export default function AdminSettings() {
@@ -24,6 +28,7 @@ export default function AdminSettings() {
     const [configs, setConfigs] = useState<any[]>([]);
     const [users, setUsers] = useState<any[]>([]);
     const [pendingLawyers, setPendingLawyers] = useState<any[]>([]);
+    const [cases, setCases] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
 
     // JSON editing state
@@ -108,6 +113,11 @@ export default function AdminSettings() {
             if (activeTab === 'lawyers' || activeTab === 'overview') {
                 const pendingData = await adminService.getPendingLawyers();
                 setPendingLawyers(pendingData);
+            }
+
+            if (activeTab === 'cases' || activeTab === 'overview') {
+                const casesData = await adminService.getAllCases();
+                setCases(casesData);
             }
         } catch (error) {
             toast.error("Failed to load data");
@@ -890,6 +900,254 @@ export default function AdminSettings() {
         );
     };
 
+    const handleApprovePayout = async (caseId: string, index: number) => {
+        try {
+            await adminService.approvePayout(caseId, index);
+            toast.success("Payout approved and released successfully!");
+            fetchData();
+        } catch (error) {
+            toast.error("Failed to approve payout");
+        }
+    };
+
+    const handleRejectPayout = async (caseId: string, index: number) => {
+        try {
+            await adminService.rejectPayout(caseId, index);
+            toast.success("Payout request rejected");
+            fetchData();
+        } catch (error) {
+            toast.error("Failed to reject payout");
+        }
+    };
+
+    const renderCasesAndPayouts = () => {
+        // Extract all pending payout requests
+        const payoutRequests: any[] = [];
+        let totalPaidOut = 0;
+        
+        cases.forEach(c => {
+            c.milestones.forEach((m: any, mIdx: number) => {
+                if (m.payoutStatus === 'requested') {
+                    payoutRequests.push({
+                        caseId: c._id,
+                        caseTitle: c.title,
+                        clientName: c.client?.fullName || 'Client',
+                        lawyerId: c.lawyer?._id,
+                        lawyerName: c.lawyer?.fullName || 'Lawyer',
+                        bankName: c.lawyer?.bankName || 'Not Provided',
+                        accountNumber: c.lawyer?.accountNumber || 'Not Provided',
+                        ifsc: c.lawyer?.ifsc || 'Not Provided',
+                        milestoneTitle: m.title,
+                        milestoneIndex: mIdx,
+                        amount: m.payoutAmount,
+                        proofDocs: m.proofDocs || []
+                    });
+                }
+                if (m.payoutStatus === 'approved') {
+                    totalPaidOut += m.payoutAmount;
+                }
+            });
+        });
+
+        const activeCasesCount = cases.filter(c => c.status === 'active').length;
+
+        return (
+            <div className="space-y-8">
+                {/* Stats row */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
+                        <div className="flex items-center gap-4">
+                            <div className="p-3 bg-purple-100 rounded-xl text-purple-600">
+                                <Briefcase className="h-6 w-6" />
+                            </div>
+                            <div>
+                                <p className="text-sm text-slate-500 font-medium">Active Cases</p>
+                                <h3 className="text-2xl font-bold text-slate-900">{activeCasesCount} / {cases.length}</h3>
+                            </div>
+                        </div>
+                    </div>
+                    <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
+                        <div className="flex items-center gap-4">
+                            <div className="p-3 bg-amber-100 rounded-xl text-amber-600">
+                                <Coins className="h-6 w-6" />
+                            </div>
+                            <div>
+                                <p className="text-sm text-slate-500 font-medium">Payout Requests</p>
+                                <h3 className="text-2xl font-bold text-slate-900">{payoutRequests.length}</h3>
+                            </div>
+                        </div>
+                    </div>
+                    <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
+                        <div className="flex items-center gap-4">
+                            <div className="p-3 bg-emerald-100 rounded-xl text-emerald-600">
+                                <Coins className="h-6 w-6" />
+                            </div>
+                            <div>
+                                <p className="text-sm text-slate-500 font-medium">Total Paid Out</p>
+                                <h3 className="text-2xl font-bold text-emerald-600">₹{totalPaidOut.toLocaleString()}</h3>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Payout requests list */}
+                <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm">
+                    <div className="p-6 border-b border-slate-100">
+                        <h3 className="font-bold text-lg text-slate-900">Pending Milestone Payout Requests</h3>
+                        <p className="text-sm text-slate-500">Verify uploaded proof documents and lawyer bank details before releasing funds.</p>
+                    </div>
+
+                    {payoutRequests.length === 0 ? (
+                        <div className="p-12 text-center">
+                            <CheckCircle className="h-12 w-12 text-emerald-200 mx-auto mb-4" />
+                            <p className="text-slate-500 font-medium">No pending payout requests.</p>
+                        </div>
+                    ) : (
+                        <table className="w-full text-left">
+                            <thead className="bg-slate-50 border-b border-slate-200">
+                                <tr>
+                                    <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase">Case / Milestone</th>
+                                    <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase">Lawyer & Payout details</th>
+                                    <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase">Verification Documents</th>
+                                    <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase text-right">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-100">
+                                {payoutRequests.map((req, rIdx) => (
+                                    <tr key={rIdx} className="hover:bg-slate-50 transition-colors">
+                                        <td className="px-6 py-4">
+                                            <div className="font-bold text-slate-900 text-sm">{req.caseTitle}</div>
+                                            <div className="text-xs text-slate-500 mt-1">Milestone: <span className="font-semibold">{req.milestoneTitle}</span></div>
+                                            <div className="text-[10px] text-slate-400 mt-0.5">Client: {req.clientName}</div>
+                                        </td>
+                                        <td className="px-6 py-4">
+                                            <div className="font-semibold text-slate-900 text-sm">{req.lawyerName}</div>
+                                            <div className="text-[11px] text-slate-500 mt-1 font-mono">
+                                                Bank: {req.bankName} • A/C: {req.accountNumber} • IFSC: {req.ifsc}
+                                            </div>
+                                            <div className="text-xs font-bold text-primary mt-1.5 flex items-center gap-1">
+                                                <Coins className="h-3.5 w-3.5" />
+                                                Payout Amount: ₹{req.amount.toLocaleString()}
+                                            </div>
+                                        </td>
+                                        <td className="px-6 py-4">
+                                            {req.proofDocs.length === 0 ? (
+                                                <span className="text-xs text-red-500 font-bold">No Proof Uploaded</span>
+                                            ) : (
+                                                <div className="space-y-2">
+                                                    {req.proofDocs.map((doc: any, dIdx: number) => {
+                                                        const isImg = /\.(jpg|jpeg|png|gif|webp)$/i.test(doc.url);
+                                                        return (
+                                                            <div key={dIdx} className="space-y-1">
+                                                                <a
+                                                                                                    href={`http://localhost:3000/lawyer${doc.url}`}
+                                                                                                    target="_blank"
+                                                                                                    rel="noreferrer"
+                                                                                                    className="text-xs text-blue-600 font-bold hover:underline inline-flex items-center gap-1.5"
+                                                                                                >
+                                                                                                    <FileText className="h-3.5 w-3.5 shrink-0" />
+                                                                                                    <span className="truncate max-w-[120px]">{doc.name}</span>
+                                                                                                    <ExternalLink className="h-3 w-3 shrink-0" />
+                                                                                                </a>
+                                                                {isImg && (
+                                                                    <div className="mt-1 rounded-lg overflow-hidden border border-slate-200 bg-slate-50 w-24 h-16 shadow-sm relative group">
+                                                                        <img 
+                                                                            src={`http://localhost:3000/lawyer${doc.url}`} 
+                                                                            alt={doc.name}
+                                                                            className="h-full w-full object-cover"
+                                                                        />
+                                                                        <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                                                            <a 
+                                                                                href={`http://localhost:3000/lawyer${doc.url}`}
+                                                                                target="_blank"
+                                                                                rel="noreferrer"
+                                                                                className="text-[8px] bg-white text-slate-900 px-1 py-0.5 rounded shadow-sm font-bold"
+                                                                            >
+                                                                                View
+                                                                            </a>
+                                                                        </div>
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        );
+                                                    })}
+                                                </div>
+                                            )}
+                                        </td>
+                                        <td className="px-6 py-4 text-right">
+                                            <div className="flex justify-end gap-2">
+                                                <button
+                                                    onClick={() => handleApprovePayout(req.caseId, req.milestoneIndex)}
+                                                    className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 shadow-sm"
+                                                >
+                                                    <CheckCircle className="h-3.5 w-3.5" />
+                                                    Approve Payout
+                                                </button>
+                                                <button
+                                                    onClick={() => handleRejectPayout(req.caseId, req.milestoneIndex)}
+                                                    className="px-3 py-1.5 bg-slate-100 hover:bg-red-50 hover:text-red-600 text-slate-600 rounded-lg text-xs font-bold transition-all"
+                                                >
+                                                    Reject
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    )}
+                </div>
+
+                {/* Master cases list */}
+                <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm">
+                    <div className="p-6 border-b border-slate-100">
+                        <h3 className="font-bold text-lg text-slate-900">Cases Registry</h3>
+                        <p className="text-sm text-slate-500">Track the overall progress and roadmap stats for all active engagements.</p>
+                    </div>
+
+                    {cases.length === 0 ? (
+                        <div className="p-12 text-center text-slate-400">No cases recorded yet.</div>
+                    ) : (
+                        <table className="w-full text-left">
+                            <thead className="bg-slate-50 border-b border-slate-200">
+                                <tr>
+                                    <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase">Case Title</th>
+                                    <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase">Client</th>
+                                    <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase">Lawyer</th>
+                                    <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase">Verification Progress</th>
+                                    <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase text-right">Fee</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-100">
+                                {cases.map((c) => (
+                                    <tr key={c._id} className="hover:bg-slate-50 transition-colors">
+                                        <td className="px-6 py-4">
+                                            <div className="font-bold text-slate-900 text-sm">{c.title}</div>
+                                            <div className="text-[10px] text-slate-400 mt-1 uppercase tracking-wider">Status: {c.status}</div>
+                                        </td>
+                                        <td className="px-6 py-4 text-sm text-slate-600">{c.client?.fullName || 'N/A'}</td>
+                                        <td className="px-6 py-4 text-sm text-slate-600">{c.lawyer?.fullName || 'N/A'}</td>
+                                        <td className="px-6 py-4">
+                                            <div className="flex items-center gap-3 w-40">
+                                                <div className="flex-1 bg-slate-100 rounded-full h-1.5 overflow-hidden">
+                                                    <div className="bg-purple-600 h-1.5 rounded-full" style={{ width: `${c.currentProgress}%` }} />
+                                                </div>
+                                                <span className="text-xs font-bold text-slate-700 shrink-0">{c.currentProgress}%</span>
+                                            </div>
+                                        </td>
+                                        <td className="px-6 py-4 text-right font-bold text-slate-900 text-sm">
+                                            ₹{c.totalFee.toLocaleString()}
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    )}
+                </div>
+            </div>
+        );
+    };
+
     const renderContent = () => {
         if (loading) return (
             <div className="flex flex-col items-center justify-center h-64 gap-4">
@@ -901,6 +1159,7 @@ export default function AdminSettings() {
         switch(activeTab) {
             case 'overview': return renderOverview();
             case 'lawyers': return renderLawyerApproval();
+            case 'cases': return renderCasesAndPayouts();
             case 'users': return renderUserManagement();
             case 'content': 
             case 'payments':

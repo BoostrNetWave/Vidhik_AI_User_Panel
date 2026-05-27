@@ -42,6 +42,7 @@ import BillingPlans from './pages/BillingPlans'
 import BillingCheckout from './pages/BillingCheckout'
 import SettingsPage from './pages/SettingsPage'
 import AdminSettings from './pages/admin/AdminSettings'
+import CasesPage from './pages/CasesPage'
 // SettingsPage import removed due to missing module
 import AdminProtectedRoute from './components/auth/AdminProtectedRoute'
 
@@ -96,6 +97,7 @@ function App() {
                 <Route path="/lawyers/:id" element={<LawyerProfile />} />
                 <Route path="/lawyers/booking/:id" element={<LawyerBooking />} />
                 <Route path="/lawyers/booking-success" element={<LawyerBookingSuccess />} />
+                <Route path="/cases" element={<CasesPage />} />
                 <Route path="/billing" element={<BillingPlans />} />
                 <Route path="/billing/checkout" element={<BillingCheckout />} />
                 <Route path="/settings" element={<SettingsPage />} />

@@ -116,7 +116,7 @@ export default function AILawyerList() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     {filteredLawyers.length > 0 ? (
                         filteredLawyers.map((lawyer) => (
-                            <Card key={lawyer.id} className="rounded-2xl border border-border bg-card hover:shadow-md transition-all duration-300 group overflow-hidden">
+                            <Card key={lawyer._id || lawyer.id} className="rounded-2xl border border-border bg-card hover:shadow-md transition-all duration-300 group overflow-hidden">
                                 <CardContent className="p-8">
                                     <div className="flex flex-col sm:flex-row gap-6">
                                         {/* Profile Image / Avatar Placeholder */}
@@ -177,7 +177,7 @@ export default function AILawyerList() {
                                                  </div>
                                                  <Button 
                                                      className="rounded-xl h-10 px-5 bg-violet-700 text-white hover:bg-violet-800 font-bold gap-2 transition-all"
-                                                     onClick={() => navigate(`/user/lawyers/${lawyer._id}`)}
+                                                  onClick={() => navigate(`/lawyers/${lawyer._id}`)}
                                                  >
                                                      View Profile
                                                      <ArrowRight className="h-4 w-4" />

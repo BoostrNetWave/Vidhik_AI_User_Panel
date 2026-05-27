@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import SystemConfig from '../models/SystemConfig';
 import User from '../models/User';
+import Case from '../models/Case';
 
 /**
  * Admin Controller
@@ -112,3 +113,88 @@ export const getPublicLawyers = async (_req: Request, res: Response) => {
         res.status(500).json({ message: 'Error fetching lawyers' });
     }
 };
+
+// @desc    Get all cases on the platform
+// @route   GET /api/admin/cases
+export const getAllCases = async (_req: Request, res: Response) => {
+    try {
+        const cases = await Case.find({})
+            .populate('client', 'fullName email')
+            .populate('lawyer', 'fullName email bankName accountNumber ifsc')
+            .sort({ createdAt: -1 });
+        res.json(cases);
+    } catch (error) {
+        res.status(500).json({ message: 'Error fetching cases' });
+    }
+};
+
+// @desc    Approve payout for a case milestone
+// @route   POST /api/admin/cases/:id/milestones/:index/approve-payout
+export const approveMilestonePayout = async (req: Request, res: Response) => {
+    try {
+        const { id, index } = req.params;
+        const milestoneIndex = parseInt(index);
+
+        const kase = await Case.findById(id);
+        if (!kase) {
+            res.status(404).json({ message: 'Case not found' });
+            return;
+        }
+
+        if (isNaN(milestoneIndex) || milestoneIndex < 0 || milestoneIndex >= kase.milestones.length) {
+            res.status(400).json({ message: 'Invalid milestone index' });
+            return;
+        }
+
+        kase.milestones[milestoneIndex].payoutStatus = 'approved';
+        await kase.save();
+
+        res.json({ message: 'Payout approved successfully', kase });
+    } catch (error) {
+        res.status(500).json({ message: 'Error approving milestone payout' });
+    }
+};
+
+// @desc    Reject payout for a case milestone
+// @route   POST /api/admin/cases/:id/milestones/:index/reject-payout
+export const rejectMilestonePayout = async (req: Request, res: Response) => {
+    try {
+        const { id, index } = req.params;
+        const milestoneIndex = parseInt(index);
+
+        const kase = await Case.findById(id);
+        if (!kase) {
+            res.status(404).json({ message: 'Case not found' });
+            return;
+        }
+
+        if (isNaN(milestoneIndex) || milestoneIndex < 0 || milestoneIndex >= kase.milestones.length) {
+            res.status(400).json({ message: 'Invalid milestone index' });
+            return;
+        }
+
+        kase.milestones[milestoneIndex].payoutStatus = 'rejected';
+        await kase.save();
+
+        res.json({ message: 'Payout rejected successfully', kase });
+    } catch (error) {
+        res.status(500).json({ message: 'Error rejecting milestone payout' });
+    }
+};
+
+// @desc    Get single lawyer profile by ID
+// @route   GET /api/admin/public/lawyers/:id
+export const getPublicLawyerById = async (req: Request, res: Response) => {
+    try {
+        const lawyer = await User.findOne({ _id: req.params.id, role: 'lawyer', isApproved: true }).select('-password');
+        if (!lawyer) {
+            res.status(404).json({ message: 'Lawyer not found' });
+            return;
+        }
+        res.json(lawyer);
+    } catch (error) {
+        res.status(500).json({ message: 'Error fetching lawyer profile' });
+    }
+};
+
+
