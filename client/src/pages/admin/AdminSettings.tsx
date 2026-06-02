@@ -1115,6 +1115,7 @@ export default function AdminSettings() {
                                     <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase">Client</th>
                                     <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase">Lawyer</th>
                                     <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase">Verification Progress</th>
+                                    <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase">Meeting Summary</th>
                                     <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase text-right">Fee</th>
                                 </tr>
                             </thead>
@@ -1134,6 +1135,22 @@ export default function AdminSettings() {
                                                 </div>
                                                 <span className="text-xs font-bold text-slate-700 shrink-0">{c.currentProgress}%</span>
                                             </div>
+                                        </td>
+                                        <td className="px-6 py-4">
+                                            {c.meetingSummaryUrl ? (
+                                                <a 
+                                                    href={`http://localhost:3000/lawyer${c.meetingSummaryUrl}`}
+                                                    target="_blank" 
+                                                    rel="noreferrer"
+                                                    className="inline-flex items-center gap-1.5 text-xs text-purple-600 hover:text-purple-800 font-bold hover:underline"
+                                                >
+                                                    <FileText className="h-3.5 w-3.5" />
+                                                    <span>View Summary</span>
+                                                    <ExternalLink className="h-3 w-3" />
+                                                </a>
+                                            ) : (
+                                                <span className="text-xs text-slate-400 font-medium">Pending Call</span>
+                                            )}
                                         </td>
                                         <td className="px-6 py-4 text-right font-bold text-slate-900 text-sm">
                                             ₹{c.totalFee.toLocaleString()}

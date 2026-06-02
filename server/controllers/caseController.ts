@@ -1,6 +1,8 @@
 import { Response } from 'express';
 import Case from '../models/Case';
 import User from '../models/User';
+import Signal from '../models/Signal';
+import { sendEmail } from '../utils/emailService';
 
 export const getCasesForClient = async (req: any, res: Response): Promise<void> => {
     try {
@@ -69,6 +71,7 @@ export const hireLawyer = async (req: any, res: Response): Promise<void> => {
             description,
             client: req.user._id,
             lawyer: lawyerId,
+            status: 'active',
             totalFee: Number(totalFee),
             currentProgress: 0,
             planSubmitted: false,
@@ -81,3 +84,168 @@ export const hireLawyer = async (req: any, res: Response): Promise<void> => {
         res.status(500).json({ message: error.message });
     }
 };
+
+export const bookLawyer = async (req: any, res: Response): Promise<void> => {
+    try {
+        const { lawyerId, title, description, bookingDate, bookingTime, totalFee } = req.body;
+
+        if (!lawyerId || !title || !description || !bookingDate || !bookingTime || !totalFee) {
+            res.status(400).json({ message: 'All fields are required' });
+            return;
+        }
+
+        const lawyerUser = await User.findOne({ _id: lawyerId, role: 'lawyer' });
+        if (!lawyerUser) {
+            res.status(404).json({ message: 'Lawyer not found' });
+            return;
+        }
+
+        const roomName = `vidhik-meet-${Math.random().toString(36).substring(2, 10)}-${Date.now().toString(36)}`;
+        const meetingLink = `https://jitsi.hamburg.ccc.de/${roomName}`;
+
+        const newCase = await Case.create({
+            title,
+            description,
+            client: req.user._id,
+            lawyer: lawyerId,
+            status: 'pending_lawyer',
+            totalFee: Number(totalFee),
+            bookingDate: new Date(bookingDate),
+            bookingTime,
+            meetingLink,
+            currentProgress: 0,
+            planSubmitted: false,
+            planApproved: false,
+            milestones: []
+        });
+
+        // Send Email to Lawyer
+        await sendEmail(
+            lawyerUser.email,
+            `New Case Consultation Request: ${title}`,
+            `<h3>New Case Booking Request</h3>
+             <p>Hello Adv. ${lawyerUser.fullName},</p>
+             <p>You have received a new consultation and case booking request from <strong>${req.user.fullName}</strong>.</p>
+             <p><strong>Topic:</strong> ${title}</p>
+             <p><strong>Description:</strong> ${description}</p>
+             <p><strong>Proposed Date:</strong> ${new Date(bookingDate).toLocaleDateString()}</p>
+             <p><strong>Proposed Time:</strong> ${bookingTime}</p>
+             <p><strong>Fee:</strong> ₹${Number(totalFee).toLocaleString()}</p>
+             <p>Please log in to your lawyer dashboard under Case Management to view and confirm this booking request.</p>`
+        );
+
+        res.status(201).json(newCase);
+    } catch (error: any) {
+        res.status(500).json({ message: error.message });
+    }
+};
+
+export const payAndConfirmCase = async (req: any, res: Response): Promise<void> => {
+    try {
+        const { id } = req.params;
+        const kase = await Case.findOneAndUpdate(
+            { _id: id, client: req.user._id, status: 'pending_payment' },
+            { $set: { status: 'active' } },
+            { new: true }
+        ).populate('lawyer', 'fullName email phone location title expertise avatar');
+
+        if (!kase) {
+            res.status(404).json({ message: 'Case not found or not in pending payment status' });
+            return;
+        }
+
+        // Send confirmation email to lawyer
+        await sendEmail(
+            (kase.lawyer as any).email,
+            `Booking Payment Confirmed: ${kase.title}`,
+            `<h3>Consultation Payment Confirmed</h3>
+             <p>Hello Adv. ${(kase.lawyer as any).fullName},</p>
+             <p>The client <strong>${req.user.fullName}</strong> has successfully completed the payment for the case: <strong>${kase.title}</strong>.</p>
+             <p><strong>Proposed Consultation Date:</strong> ${kase.bookingDate ? new Date(kase.bookingDate).toLocaleDateString() : 'N/A'}</p>
+             <p><strong>Proposed Consultation Time:</strong> ${kase.bookingTime || 'N/A'}</p>
+             <p><strong>Consultation Meeting Link:</strong> <a href="${kase.meetingLink}">${kase.meetingLink}</a></p>
+             <p>This engagement is now <strong>Active</strong>. You can now log in to your dashboard to join the consultation or upload your roadmap.</p>`
+        );
+
+        // Send confirmation email to client
+        await sendEmail(
+            req.user.email,
+            `Consultation Confirmed: ${kase.title}`,
+            `<h3>Consultation Booking Confirmed</h3>
+             <p>Hello ${req.user.fullName},</p>
+             <p>Your payment for the case: <strong>${kase.title}</strong> with Advocate <strong>${(kase.lawyer as any).fullName}</strong> has been successfully processed.</p>
+             <p><strong>Consultation Date:</strong> ${kase.bookingDate ? new Date(kase.bookingDate).toLocaleDateString() : 'N/A'}</p>
+             <p><strong>Consultation Time:</strong> ${kase.bookingTime || 'N/A'}</p>
+             <p><strong>Consultation Meeting Link:</strong> <a href="${kase.meetingLink}">${kase.meetingLink}</a></p>
+             <p>Please click the link above or log in to your dashboard to join the video consultation at the scheduled time.</p>`
+        );
+
+        res.json(kase);
+    } catch (error: any) {
+        res.status(500).json({ message: error.message });
+    }
+};
+
+export const joinMeeting = async (req: any, res: Response): Promise<void> => {
+    try {
+        const { id } = req.params;
+        const kase = await Case.findOneAndUpdate(
+            { _id: id, client: req.user._id },
+            { $set: { meetingJoinedByClient: true } },
+            { new: true }
+        ).populate('lawyer', 'fullName email phone location title expertise avatar');
+
+        if (!kase) {
+            res.status(404).json({ message: 'Case not found or unauthorized' });
+            return;
+        }
+        res.json(kase);
+    } catch (error: any) {
+        res.status(500).json({ message: error.message });
+    }
+};
+
+export const sendSignal = async (req: any, res: Response): Promise<void> => {
+    try {
+        const { id } = req.params;
+        const { sender, type, sdp, candidate } = req.body;
+
+        if (!sender || !type) {
+            res.status(400).json({ message: 'Sender and type are required' });
+            return;
+        }
+
+        const signal = await Signal.create({
+            caseId: id,
+            sender,
+            type,
+            sdp,
+            candidate: typeof candidate === 'string' ? candidate : JSON.stringify(candidate)
+        });
+
+        res.status(201).json(signal);
+    } catch (error: any) {
+        res.status(500).json({ message: error.message });
+    }
+};
+
+export const getSignals = async (req: any, res: Response): Promise<void> => {
+    try {
+        const { id } = req.params;
+        const signals = await Signal.find({ caseId: id }).sort({ createdAt: 1 });
+        res.json(signals);
+    } catch (error: any) {
+        res.status(500).json({ message: error.message });
+    }
+};
+
+export const clearSignals = async (req: any, res: Response): Promise<void> => {
+    try {
+        const { id } = req.params;
+        await Signal.deleteMany({ caseId: id });
+        res.json({ message: 'Signals cleared successfully' });
+    } catch (error: any) {
+        res.status(500).json({ message: error.message });
+    }
+};
+

@@ -124,11 +124,11 @@ export default function DashboardLayout({ children, userNav }: DashboardLayoutPr
                             ? 'bg-primary/10 text-primary hover:bg-primary/20'
                             : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
                             } ${isCollapsed ? 'justify-center px-0' : ''}`}
-                        title={isCollapsed ? "My Cases" : ""}
+                        title={isCollapsed ? "Case Management" : ""}
                         onClick={() => navigate('/cases')}
                     >
                         <Briefcase className="h-5 w-5 shrink-0" />
-                        {!isCollapsed && <span className="font-medium text-sm">My Cases</span>}
+                        {!isCollapsed && <span className="font-medium text-sm">Case Management</span>}
                     </Button>
 
                     <Button

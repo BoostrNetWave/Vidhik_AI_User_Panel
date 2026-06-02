@@ -31,12 +31,20 @@ export interface ICase {
         expertise?: string;
         avatar?: string;
     };
-    status: 'active' | 'completed' | 'cancelled';
+    status: 'pending_lawyer' | 'pending_payment' | 'active' | 'completed' | 'cancelled';
     totalFee: number;
     currentProgress: number;
     planSubmitted: boolean;
     planApproved: boolean;
     milestones: IMilestone[];
+    bookingDate?: string;
+    bookingTime?: string;
+    meetingLink?: string;
+    meetingSummaryUrl?: string;
+    meetingSummaryName?: string;
+    meetingSummaryUploadedAt?: string;
+    meetingJoinedByClient?: boolean;
+    meetingJoinedByLawyer?: boolean;
     createdAt: string;
     updatedAt: string;
 }
@@ -59,6 +67,36 @@ export const caseService = {
 
     async hireLawyer(data: { lawyerId: string; title: string; description: string; totalFee: number }): Promise<ICase> {
         const response = await api.post('/cases/hire', data);
+        return response.data;
+    },
+
+    async bookLawyer(data: { lawyerId: string; title: string; description: string; bookingDate: string; bookingTime: string; totalFee: number }): Promise<ICase> {
+        const response = await api.post('/cases/book', data);
+        return response.data;
+    },
+
+    async payAndConfirm(id: string): Promise<ICase> {
+        const response = await api.post(`/cases/${id}/pay`);
+        return response.data;
+    },
+
+    async joinMeeting(id: string): Promise<ICase> {
+        const response = await api.post(`/cases/${id}/join-meeting`);
+        return response.data;
+    },
+
+    async sendSignal(id: string, signalData: { sender: 'client' | 'lawyer'; type: string; sdp?: string; candidate?: any }): Promise<any> {
+        const response = await api.post(`/cases/${id}/signal`, signalData);
+        return response.data;
+    },
+
+    async getSignals(id: string): Promise<any[]> {
+        const response = await api.get(`/cases/${id}/signals`);
+        return response.data;
+    },
+
+    async clearSignals(id: string): Promise<any> {
+        const response = await api.post(`/cases/${id}/signals/clear`);
         return response.data;
     }
 };

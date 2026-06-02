@@ -43,8 +43,8 @@ import BillingCheckout from './pages/BillingCheckout'
 import SettingsPage from './pages/SettingsPage'
 import AdminSettings from './pages/admin/AdminSettings'
 import CasesPage from './pages/CasesPage'
-// SettingsPage import removed due to missing module
 import AdminProtectedRoute from './components/auth/AdminProtectedRoute'
+import ConsultationMeeting from './pages/ConsultationMeeting'
 
 function App() {
     return (
@@ -98,6 +98,7 @@ function App() {
                 <Route path="/lawyers/booking/:id" element={<LawyerBooking />} />
                 <Route path="/lawyers/booking-success" element={<LawyerBookingSuccess />} />
                 <Route path="/cases" element={<CasesPage />} />
+                <Route path="/cases/:id/meet" element={<ConsultationMeeting />} />
                 <Route path="/billing" element={<BillingPlans />} />
                 <Route path="/billing/checkout" element={<BillingCheckout />} />
                 <Route path="/settings" element={<SettingsPage />} />
