@@ -44,5 +44,30 @@ export const adminService = {
     async rejectPayout(caseId: string, milestoneIndex: number) {
         const response = await api.post(`/admin/cases/${caseId}/milestones/${milestoneIndex}/reject-payout`);
         return response.data;
+    },
+
+    async getAllTickets() {
+        const response = await api.get('/admin/tickets');
+        return response.data;
+    },
+
+    async replyToTicket(id: string, adminReply: string, status: string) {
+        const response = await api.post(`/admin/tickets/${id}/reply`, { adminReply, status });
+        return response.data;
+    },
+
+    async getAllDocuments() {
+        const response = await api.get('/admin/documents');
+        return response.data;
+    },
+
+    async getUserDetails(id: string) {
+        const response = await api.get(`/admin/users/${id}/details`);
+        return response.data;
+    },
+
+    async updateUserSubscription(id: string, subscription: string) {
+        const response = await api.post(`/admin/users/${id}/subscription`, { subscription });
+        return response.data;
     }
 };

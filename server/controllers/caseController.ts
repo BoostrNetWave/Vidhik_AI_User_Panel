@@ -2,6 +2,8 @@ import { Response } from 'express';
 import Case from '../models/Case';
 import User from '../models/User';
 import Signal from '../models/Signal';
+import UsageRecord from '../models/UsageRecord';
+import SystemConfig from '../models/SystemConfig';
 import { sendEmail } from '../utils/emailService';
 
 export const getCasesForClient = async (req: any, res: Response): Promise<void> => {
@@ -66,6 +68,29 @@ export const hireLawyer = async (req: any, res: Response): Promise<void> => {
             return;
         }
 
+        // Check lawyer's active cases limit
+        const lawyerPlanName = lawyerUser.subscription || 'Free';
+        const plansConfig = await SystemConfig.findOne({ key: 'LAWYER_PRICING_PLANS' });
+        let activeCasesLimit = 5;
+        if (plansConfig && Array.isArray(plansConfig.value)) {
+            const plan = plansConfig.value.find(
+                (p: any) => p.name.toLowerCase() === lawyerPlanName.toLowerCase()
+            ) || plansConfig.value.find((p: any) => p.name.toLowerCase() === 'free');
+            if (plan && plan.limits && plan.limits.activeCases !== undefined) {
+                activeCasesLimit = Number(plan.limits.activeCases);
+            }
+        }
+
+        const activeCasesCount = await Case.countDocuments({
+            lawyer: lawyerId,
+            status: { $in: ['active', 'pending_lawyer', 'pending_payment'] }
+        });
+
+        if (activeCasesCount >= activeCasesLimit) {
+            res.status(403).json({ message: 'This lawyer has reached the active case capacity limit for their current subscription plan.' });
+            return;
+        }
+
         const newCase = await Case.create({
             title,
             description,
@@ -97,6 +122,29 @@ export const bookLawyer = async (req: any, res: Response): Promise<void> => {
         const lawyerUser = await User.findOne({ _id: lawyerId, role: 'lawyer' });
         if (!lawyerUser) {
             res.status(404).json({ message: 'Lawyer not found' });
+            return;
+        }
+
+        // Check lawyer's active cases limit
+        const lawyerPlanName = lawyerUser.subscription || 'Free';
+        const plansConfig = await SystemConfig.findOne({ key: 'LAWYER_PRICING_PLANS' });
+        let activeCasesLimit = 5;
+        if (plansConfig && Array.isArray(plansConfig.value)) {
+            const plan = plansConfig.value.find(
+                (p: any) => p.name.toLowerCase() === lawyerPlanName.toLowerCase()
+            ) || plansConfig.value.find((p: any) => p.name.toLowerCase() === 'free');
+            if (plan && plan.limits && plan.limits.activeCases !== undefined) {
+                activeCasesLimit = Number(plan.limits.activeCases);
+            }
+        }
+
+        const activeCasesCount = await Case.countDocuments({
+            lawyer: lawyerId,
+            status: { $in: ['active', 'pending_lawyer', 'pending_payment'] }
+        });
+
+        if (activeCasesCount >= activeCasesLimit) {
+            res.status(403).json({ message: 'This lawyer has reached the active case capacity limit for their current subscription plan.' });
             return;
         }
 
@@ -133,6 +181,12 @@ export const bookLawyer = async (req: any, res: Response): Promise<void> => {
              <p><strong>Fee:</strong> ₹${Number(totalFee).toLocaleString()}</p>
              <p>Please log in to your lawyer dashboard under Case Management to view and confirm this booking request.</p>`
         );
+
+        // Log usage in UsageRecord
+        await UsageRecord.create({
+            userId: req.user._id,
+            featureType: 'lawyer_booking'
+        });
 
         res.status(201).json(newCase);
     } catch (error: any) {

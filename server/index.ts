@@ -16,6 +16,8 @@ import documentRoutes from './routes/documentRoutes';
 import researchRoutes from './routes/researchRoutes';
 import adminRoutes from './routes/adminRoutes';
 import caseRoutes from './routes/caseRoutes';
+import dashboardRoutes from './routes/dashboardRoutes';
+import supportRoutes from './routes/supportRoutes';
 
 const app = express();
 const PORT = process.env.PORT || 5003;
@@ -38,6 +40,8 @@ app.use('/api/documents', documentRoutes);
 app.use('/api/research', researchRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/cases', caseRoutes);
+app.use('/api/dashboard', dashboardRoutes);
+app.use('/api/support', supportRoutes);
 
 // Basic Route
 app.get('/api/health', (_req, res) => {

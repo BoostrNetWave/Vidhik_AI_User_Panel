@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { protect } from '../middleware/authMiddleware';
+import { checkUserLimit } from '../middleware/limitMiddleware';
 import { 
     getCasesForClient, 
     getCaseById, 
@@ -19,7 +20,7 @@ router.use(protect);
 
 router.get('/client', getCasesForClient);
 router.post('/hire', hireLawyer);
-router.post('/book', bookLawyer);
+router.post('/book', checkUserLimit('bookings'), bookLawyer);
 router.post('/:id/pay', payAndConfirmCase);
 router.post('/:id/join-meeting', joinMeeting);
 router.post('/:id/signal', sendSignal);

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button"
 import { Mail, Settings, LayoutDashboard, FileText, CheckSquare, Folder, MessageSquare, ChevronLeft, ChevronRight, Users, CreditCard, Briefcase } from "lucide-react"
 import { useLocation, useNavigate } from 'react-router-dom';
@@ -15,6 +15,10 @@ export default function DashboardLayout({ children, userNav }: DashboardLayoutPr
     const location = useLocation();
     const navigate = useNavigate();
     const [isCollapsed, setIsCollapsed] = useState(false);
+
+    useEffect(() => {
+        document.title = "Vidhik AI - Client Dashboard";
+    }, []);
 
     const toggleSidebar = () => {
         setIsCollapsed(!isCollapsed);
@@ -182,10 +186,10 @@ export default function DashboardLayout({ children, userNav }: DashboardLayoutPr
                             {!isCollapsed && (
                                 <div className="text-right hidden sm:block">
                                     <p className="text-sm font-semibold text-slate-900 leading-none">
-                                        {JSON.parse(localStorage.getItem('user_data') || '{}').fullName || 'User'}
+                                        {JSON.parse(localStorage.getItem('user_profile_data') || '{}').fullName || 'User'}
                                     </p>
                                     <p className="text-[11px] text-slate-500 font-medium mt-1">
-                                        {JSON.parse(localStorage.getItem('user_data') || '{}').designation || 'Legal Member'}
+                                        {JSON.parse(localStorage.getItem('user_profile_data') || '{}').designation || 'Legal Member'}
                                     </p>
                                 </div>
                             )}

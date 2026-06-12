@@ -19,9 +19,12 @@ export default function LawyerBookingSuccess() {
     const location = useLocation();
 
     // Retrieve passed lawyer details from checkout navigation
-    const { lawyerName, specialization } = (location.state as any) || {
+    const { lawyerName, specialization, avatar, bookingDate, bookingTime } = (location.state as any) || {
         lawyerName: "Your Legal Counsel",
-        specialization: "Legal Expert"
+        specialization: "Legal Expert",
+        avatar: null,
+        bookingDate: "Today",
+        bookingTime: "Instant Priority Consultation"
     };
 
     return (
@@ -57,8 +60,16 @@ export default function LawyerBookingSuccess() {
                     <CardContent className="p-10 space-y-8">
                         {/* Lawyer Details */}
                         <div className="flex items-center gap-6">
-                            <div className="h-20 w-20 rounded-2xl bg-gray-900 flex items-center justify-center shrink-0 overflow-hidden border-2 border-white shadow-lg">
-                                <User className="h-10 w-10 text-gray-400" />
+                            <div className="h-20 w-20 rounded-2xl bg-gray-50 flex items-center justify-center shrink-0 overflow-hidden border border-slate-200 shadow-md">
+                                {avatar ? (
+                                    <img 
+                                        src={avatar.startsWith('http') ? avatar : (avatar.startsWith('/') ? `/lawyer${avatar}` : `/lawyer/${avatar}`)} 
+                                        alt={lawyerName} 
+                                        className="h-full w-full object-cover animate-in fade-in duration-300"
+                                    />
+                                ) : (
+                                    <User className="h-10 w-10 text-gray-400" />
+                                )}
                             </div>
                             <div className="space-y-1.5">
                                 <h3 className="text-xl font-bold text-gray-900 flex items-center gap-2">
@@ -74,22 +85,22 @@ export default function LawyerBookingSuccess() {
 
                         {/* Schedule Info */}
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div className="bg-[#F8F9FA] rounded-2xl p-6 flex items-center gap-4 border border-gray-50">
+                            <div className="bg-[#F8F9FA] rounded-2xl p-6 flex items-center gap-4 border border-gray-50 shadow-sm">
                                 <div className="h-12 w-12 rounded-xl bg-white flex items-center justify-center shadow-sm text-[#7C3AED]">
                                     <Calendar className="h-6 w-6" />
                                 </div>
                                 <div>
                                     <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Date</p>
-                                    <p className="text-sm font-bold text-gray-900 tracking-tight">Today</p>
+                                    <p className="text-sm font-bold text-gray-900 tracking-tight">{bookingDate || "Today"}</p>
                                 </div>
                             </div>
-                            <div className="bg-[#F8F9FA] rounded-2xl p-6 flex items-center gap-4 border border-gray-50">
+                            <div className="bg-[#F8F9FA] rounded-2xl p-6 flex items-center gap-4 border border-gray-50 shadow-sm">
                                 <div className="h-12 w-12 rounded-xl bg-white flex items-center justify-center shadow-sm text-[#7C3AED]">
                                     <Clock className="h-6 w-6" />
                                 </div>
                                 <div>
                                     <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Time</p>
-                                    <p className="text-sm font-bold text-gray-900 tracking-tight">Instant Priority Consultation</p>
+                                    <p className="text-sm font-bold text-gray-900 tracking-tight">{bookingTime || "Instant Priority Consultation"}</p>
                                 </div>
                             </div>
                         </div>

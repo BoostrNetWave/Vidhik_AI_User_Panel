@@ -2,6 +2,8 @@ import { Request, Response } from 'express';
 import SystemConfig from '../models/SystemConfig';
 import User from '../models/User';
 import Case from '../models/Case';
+import SupportTicket from '../models/SupportTicket';
+import DocumentModel from '../models/Document';
 
 /**
  * Admin Controller
@@ -194,6 +196,110 @@ export const getPublicLawyerById = async (req: Request, res: Response) => {
         res.json(lawyer);
     } catch (error) {
         res.status(500).json({ message: 'Error fetching lawyer profile' });
+    }
+};
+
+// @desc    Get all support tickets
+// @route   GET /api/admin/tickets
+export const getAllTickets = async (_req: Request, res: Response) => {
+    try {
+        const tickets = await SupportTicket.find({}).sort({ createdAt: -1 });
+        res.json(tickets);
+    } catch (error) {
+        res.status(500).json({ message: 'Error fetching support tickets' });
+    }
+};
+
+// @desc    Reply to a support ticket and update status
+// @route   POST /api/admin/tickets/:id/reply
+export const replyToTicket = async (req: Request, res: Response) => {
+    try {
+        const { id } = req.params;
+        const { adminReply, status } = req.body;
+
+        const ticket = await SupportTicket.findByIdAndUpdate(
+            id,
+            { adminReply, status: status || 'Closed' },
+            { new: true }
+        );
+
+        if (!ticket) {
+            res.status(404).json({ message: 'Ticket not found' });
+            return;
+        }
+
+        res.json({ message: 'Ticket updated successfully', ticket });
+    } catch (error) {
+        res.status(500).json({ message: 'Error updating support ticket' });
+    }
+};
+
+// @desc    Get all generated documents
+// @route   GET /api/admin/documents
+export const getAllDocuments = async (_req: Request, res: Response) => {
+    try {
+        const docs = await DocumentModel.find({})
+            .populate('userId', 'fullName email')
+            .sort({ createdAt: -1 });
+        res.json(docs);
+    } catch (error) {
+        res.status(500).json({ message: 'Error fetching documents' });
+    }
+};
+
+// @desc    Get complete details of a single user (including cases, documents)
+// @route   GET /api/admin/users/:id/details
+export const getUserDetails = async (req: Request, res: Response) => {
+    try {
+        const { id } = req.params;
+        const user = await User.findById(id).select('-password');
+        if (!user) {
+            res.status(404).json({ message: 'User not found' });
+            return;
+        }
+
+        // Fetch bookings/cases depending on role
+        let cases = [];
+        if (user.role === 'lawyer') {
+            cases = await Case.find({ lawyer: id }).populate('client', 'fullName email phone');
+        } else {
+            cases = await Case.find({ client: id }).populate('lawyer', 'fullName email title expertise');
+        }
+
+        // Fetch documents
+        const documents = await DocumentModel.find({ userId: id }).select('title documentType status createdAt');
+
+        res.json({
+            user,
+            cases,
+            documents
+        });
+    } catch (error) {
+        res.status(500).json({ message: 'Error fetching user details' });
+    }
+};
+
+// @desc    Update a user's subscription plan
+// @route   POST /api/admin/users/:id/subscription
+export const updateUserSubscription = async (req: Request, res: Response) => {
+    try {
+        const { id } = req.params;
+        const { subscription } = req.body;
+
+        const user = await User.findByIdAndUpdate(
+            id,
+            { subscription },
+            { new: true }
+        ).select('-password');
+
+        if (!user) {
+            res.status(404).json({ message: 'User not found' });
+            return;
+        }
+
+        res.json({ message: 'User subscription updated successfully', user });
+    } catch (error) {
+        res.status(500).json({ message: 'Error updating user subscription' });
     }
 };
 

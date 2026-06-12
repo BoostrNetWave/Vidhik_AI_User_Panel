@@ -91,6 +91,208 @@ const seedData = [
         description: 'Default consultation fee for lawyers (in INR)'
     },
     {
+        key: 'USER_PRICING_PLANS',
+        value: [
+            { name: "Free", priceMonthly: 0, priceYearly: 0, desc: "Perfect for trying out Vidhik AI", features: ["5 documents per month", "2 contract reviews per month", "5 AI queries per day", "1 lawyer booking per month"], gradient: "from-slate-500 to-slate-600", popular: false, iconName: "Zap", cta: "Current Active Plan", disabled: true, current: true, limits: { documents: 5, reviews: 2, research: 5, bookings: 1 } },
+            { name: "Starter", priceMonthly: 2499, priceYearly: 23990, desc: "Basic AI tools for startups", features: ["30 documents per month", "10 contract reviews per month", "20 AI queries per day", "5 lawyer bookings per month"], gradient: "from-accent to-purple-500", popular: false, iconName: "Zap", cta: "Upgrade to Starter", disabled: false, limits: { documents: 30, reviews: 10, research: 20, bookings: 5 } },
+            { name: "Professional", priceMonthly: 8299, priceYearly: 79670, desc: "Unlimited AI capabilities for professionals", features: ["50 documents per month", "30 contract reviews per month", "100 AI queries per day", "15 lawyer bookings per month"], gradient: "from-indigo-500 to-blue-600", popular: true, iconName: "Crown", cta: "Upgrade to Professional", disabled: false, bestValue: true, limits: { documents: 50, reviews: 30, research: 100, bookings: 15 } },
+            { name: "Enterprise", priceMonthly: "Custom", priceYearly: "Custom", desc: "For large enterprise legal teams", features: ["Unlimited documents", "Unlimited reviews", "Unlimited AI queries", "Unlimited lawyer bookings"], gradient: "from-slate-900 to-slate-800", popular: false, iconName: "Building2", cta: "Contact Sales", disabled: false, limits: { documents: 999999, reviews: 999999, research: 999999, bookings: 999999 } }
+        ],
+        category: 'user_panel',
+        description: 'JSON array of subscription plans displayed in the User Panel Billing section (prices in INR)'
+    },
+    {
+        key: 'LAWYER_PRICING_PLANS',
+        value: [
+            { name: "Free", priceMonthly: 0, priceYearly: 0, desc: "Basic lawyer profile", features: ["Up to 5 active cases", "2 blog posts per week", "15% platform commission"], gradient: "from-slate-500 to-slate-600", popular: false, iconName: "Zap", cta: "Current Active Plan", disabled: true, current: true, limits: { activeCases: 5, blogsPerWeek: 2, commissionPercent: 15 } },
+            { name: "Standard", priceMonthly: 1999, priceYearly: 19990, desc: "Standard level for practitioners", features: ["Up to 15 active cases", "5 blog posts per week", "10% platform commission"], gradient: "from-accent to-purple-500", popular: true, iconName: "Crown", cta: "Upgrade to Standard", disabled: false, limits: { activeCases: 15, blogsPerWeek: 5, commissionPercent: 10 } },
+            { name: "Premium", priceMonthly: 4999, priceYearly: 49990, desc: "Professional firm features", features: ["Up to 50 active cases", "10 blog posts per week", "7% platform commission"], gradient: "from-indigo-500 to-blue-600", popular: false, iconName: "Building2", cta: "Upgrade to Premium", disabled: false, limits: { activeCases: 50, blogsPerWeek: 10, commissionPercent: 7 } },
+            { name: "Enterprise", priceMonthly: "Custom", priceYearly: "Custom", desc: "For large legal associations", features: ["Unlimited active cases", "Unlimited blog posts", "5% platform commission"], gradient: "from-slate-900 to-slate-800", popular: false, iconName: "Shield", cta: "Contact Sales", disabled: false, limits: { activeCases: 999999, blogsPerWeek: 999999, commissionPercent: 5 } }
+        ],
+        category: 'lawyer_panel',
+        description: 'JSON array of subscription plans displayed in the Lawyer Panel (prices in INR)'
+    },
+    {
+        key: 'USER_DOC_GENERATOR_TITLE',
+        value: 'AI Legal Document Generator',
+        category: 'user_panel',
+        description: 'Heading displayed at the top of the AI Document Generator and Hub sections'
+    },
+    {
+        key: 'USER_DOC_GENERATOR_DESC',
+        value: 'Create professional, legally-compliant contracts, notices, and agreements in minutes. Simply answer a few questions and our AI will draft the document for you.',
+        category: 'user_panel',
+        description: 'Detailed description for the AI Document Generator sub-module'
+    },
+    {
+        key: 'USER_DOC_GENERATOR_LIMIT_FREE',
+        value: 5,
+        category: 'user_panel',
+        description: 'Default monthly document generation limit for free tier users'
+    },
+    {
+        key: 'USER_DOC_GENERATOR_ACTIVE',
+        value: true,
+        category: 'user_panel',
+        description: 'Enable or disable the AI Document Generator feature entirely'
+    },
+    {
+        key: 'USER_DOC_REVIEW_TITLE',
+        value: 'AI Contract Review & Audit',
+        category: 'user_panel',
+        description: 'Heading displayed on the AI Document / Contract Review page'
+    },
+    {
+        key: 'USER_DOC_REVIEW_DESC',
+        value: 'Upload any contract or legal document to automatically analyze it for hidden risks, missing terms, liability exposure, and suggested revisions.',
+        category: 'user_panel',
+        description: 'Sub-description text for the Contract Review tool'
+    },
+    {
+        key: 'USER_DOC_REVIEW_MAX_FILE_SIZE_MB',
+        value: 10,
+        category: 'user_panel',
+        description: 'Maximum permitted file size in Megabytes for contract review uploads'
+    },
+    {
+        key: 'USER_DOC_REVIEW_ACTIVE',
+        value: true,
+        category: 'user_panel',
+        description: 'Enable or disable the AI Contract Review features'
+    },
+    {
+        key: 'USER_LEGAL_ASSISTANT_TITLE',
+        value: 'Vidhik AI Legal Assistant',
+        category: 'user_panel',
+        description: 'Main heading for the Legal Assistant chat and research page'
+    },
+    {
+        key: 'USER_LEGAL_ASSISTANT_DESC',
+        value: 'Query laws, retrieve judicial citations, and draft legal templates interactively with our LLM trained on Indian jurisprudence.',
+        category: 'user_panel',
+        description: 'Description of the AI Legal Assistant capabilities'
+    },
+    {
+        key: 'USER_LEGAL_ASSISTANT_DAILY_LIMIT',
+        value: 20,
+        category: 'user_panel',
+        description: 'Daily query limit per basic user'
+    },
+    {
+        key: 'USER_LEGAL_ASSISTANT_ACTIVE',
+        value: true,
+        category: 'user_panel',
+        description: 'Toggle to activate/deactivate the AI Legal Assistant chat interface'
+    },
+    {
+        key: 'USER_LAWYER_BOOKING_TITLE',
+        value: 'Verified Lawyer Consultations',
+        category: 'user_panel',
+        description: 'Heading displayed on the Find & Book Lawyers page'
+    },
+    {
+        key: 'USER_LAWYER_BOOKING_DESC',
+        value: 'Schedule video calls or physical appointments with vetted specialists. Get legal advice on business, corporate, family, and criminal cases.',
+        category: 'user_panel',
+        description: 'Sub-description text for lawyer directories'
+    },
+    {
+        key: 'USER_LAWYER_BOOKING_BASE_COMMISSION_PERCENT',
+        value: 15,
+        category: 'user_panel',
+        description: 'Platform commission percentage charged on lawyer booking fees'
+    },
+    {
+        key: 'USER_LAWYER_BOOKING_ACTIVE',
+        value: true,
+        category: 'user_panel',
+        description: 'Toggle availability of lawyer bookings and meeting portals'
+    },
+    {
+        key: 'LAWYER_DASHBOARD_TITLE',
+        value: 'Lawyer Chamber Control',
+        category: 'lawyer_panel',
+        description: 'Main header title visible on the lawyer portal dashboard'
+    },
+    {
+        key: 'LAWYER_DASHBOARD_WELCOME_MSG',
+        value: 'Manage client relationships, audit assigned case profiles, and track payout releases from your centralized legal console.',
+        category: 'lawyer_panel',
+        description: 'Greeting description subtext on the lawyer dashboard'
+    },
+    {
+        key: 'LAWYER_DASHBOARD_ANNOUNCEMENT',
+        value: 'Notice: Platform commission is currently fixed at 15% per booking. Weekly payout cycles occur every Friday for all completed milestones.',
+        category: 'lawyer_panel',
+        description: 'Scrolling or static banner message shown to logged-in lawyers'
+    },
+    {
+        key: 'LAWYER_CASES_MAX_ACTIVE_PER_LAWYER',
+        value: 50,
+        category: 'lawyer_panel',
+        description: 'Maximum number of concurrent active case consults a lawyer can handle'
+    },
+    {
+        key: 'LAWYER_APPOINTMENT_MIN_NOTICE_HOURS',
+        value: 4,
+        category: 'lawyer_panel',
+        description: 'Minimum notice period in hours required before a user can book a lawyer consultation'
+    },
+    {
+        key: 'LAWYER_APPOINTMENT_ACTIVE',
+        value: true,
+        category: 'lawyer_panel',
+        description: 'Allow or block clients from making new bookings with lawyers'
+    },
+    {
+        key: 'LAWYER_BLOG_MAX_POSTS_PER_WEEK',
+        value: 5,
+        category: 'lawyer_panel',
+        description: 'Number of legal articles or updates a lawyer can post weekly'
+    },
+    {
+        key: 'LAWYER_BLOG_AUTO_APPROVE',
+        value: false,
+        category: 'lawyer_panel',
+        description: 'If false, lawyer articles must be manually approved by administrators before going live'
+    },
+    {
+        key: 'LAWYER_BLOG_ACTIVE',
+        value: true,
+        category: 'lawyer_panel',
+        description: 'Enable or disable article generation/sharing inside the lawyer panel'
+    },
+    {
+        key: 'LAWYER_PAYMENT_MIN_PAYOUT_AMOUNT',
+        value: 1000,
+        category: 'lawyer_panel',
+        description: 'Minimum milestone payout threshold in INR required to release funds to the bank'
+    },
+    {
+        key: 'LAWYER_PAYMENT_TDS_PERCENT',
+        value: 10,
+        category: 'lawyer_panel',
+        description: 'Tax Deducted at Source (TDS) rate applied on lawyer payments'
+    },
+    {
+        key: 'LAWYER_PAYMENT_ACTIVE',
+        value: true,
+        category: 'lawyer_panel',
+        description: 'Enable or suspend lawyer payment collections and withdrawal options'
+    },
+    {
+        key: 'LAWYER_SUPPORT_CONTACT_PHONE',
+        value: '+91 80 4567 8910',
+        category: 'lawyer_panel',
+        description: 'Direct support phone line displayed in the lawyer helpline page'
+    },
+    {
+        key: 'LAWYER_SUPPORT_ACTIVE',
+        value: true,
+        category: 'lawyer_panel',
+        description: 'Enable or disable support request creation in the lawyer help center'
+    },
+    {
         key: 'SYSTEM_MAINTENANCE_MODE',
         value: false,
         category: 'system',

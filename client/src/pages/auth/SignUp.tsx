@@ -69,8 +69,8 @@ export default function SignUp() {
             })
 
             // Store token and user data
-            localStorage.setItem('user_token', data.token)
-            localStorage.setItem('user_data', JSON.stringify(data))
+            localStorage.setItem('user_auth_token', data.token)
+            localStorage.setItem('user_profile_data', JSON.stringify(data))
 
             // Role-based redirection
             if (data.role === 'admin') {

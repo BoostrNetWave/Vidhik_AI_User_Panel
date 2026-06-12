@@ -1,22 +1,29 @@
-import { Request, Response } from 'express';
+import { Response } from 'express';
 import { llmService } from '../services/llmService';
 import { getResearchSystemPrompt, getResearchUserPrompt } from '../prompts/researchPrompt';
 import Research from '../models/Research';
+import UsageRecord from '../models/UsageRecord';
 
-export const handleLegalResearch = async (req: Request, res: Response) => {
+export const handleLegalResearch = async (req: any, res: Response) => {
     try {
-        const { query } = req.body;
+        const { query, model } = req.body;
 
         if (!query) {
             return res.status(400).json({ error: 'Query is required' });
         }
 
-        console.log(`[Research Controller] Performing research for: ${query}`);
+        console.log(`[Research Controller] Performing research for: ${query} using model: ${model}`);
 
         const result = await llmService.generate({
-            model: 'gpt-4o',
+            model: model || 'gpt-4o',
             systemPrompt: getResearchSystemPrompt(),
             userPrompt: getResearchUserPrompt(query)
+        });
+
+        // Log usage in UsageRecord
+        await UsageRecord.create({
+            userId: req.user._id,
+            featureType: 'legal_research'
         });
 
         res.json({
@@ -30,9 +37,9 @@ export const handleLegalResearch = async (req: Request, res: Response) => {
     }
 };
 
-export const getResearchHistory = async (_req: Request, res: Response) => {
+export const getResearchHistory = async (req: any, res: Response) => {
     try {
-        const history = await Research.find().sort({ createdAt: -1 });
+        const history = await Research.find({ userId: req.user._id }).sort({ createdAt: -1 });
         res.json(history.map(item => ({
             id: item._id,
             title: item.title,
@@ -48,7 +55,7 @@ export const getResearchHistory = async (_req: Request, res: Response) => {
     }
 };
 
-export const saveResearch = async (req: Request, res: Response) => {
+export const saveResearch = async (req: any, res: Response) => {
     try {
         const { query, answer, title, category } = req.body;
 
@@ -57,6 +64,7 @@ export const saveResearch = async (req: Request, res: Response) => {
         }
 
         const newResearch = new Research({
+            userId: req.user._id,
             query,
             answer,
             title: title || (query.length > 50 ? query.substring(0, 50) + '...' : query),
@@ -72,7 +80,7 @@ export const saveResearch = async (req: Request, res: Response) => {
     }
 };
 
-export const deleteResearch = async (req: Request, res: Response) => {
+export const deleteResearch = async (req: any, res: Response) => {
     try {
         const { id } = req.params;
 
@@ -80,7 +88,7 @@ export const deleteResearch = async (req: Request, res: Response) => {
             return res.status(400).json({ error: 'Research ID is required' });
         }
 
-        const deletedResearch = await Research.findByIdAndDelete(id);
+        const deletedResearch = await Research.findOneAndDelete({ _id: id, userId: req.user._id });
 
         if (!deletedResearch) {
             return res.status(404).json({ error: 'Research record not found' });
@@ -93,9 +101,9 @@ export const deleteResearch = async (req: Request, res: Response) => {
     }
 };
 
-export const clearAllHistory = async (_req: Request, res: Response) => {
+export const clearAllHistory = async (req: any, res: Response) => {
     try {
-        await Research.deleteMany({});
+        await Research.deleteMany({ userId: req.user._id });
         res.json({ message: 'All research history cleared successfully' });
     } catch (error: any) {
         console.error('[Research Controller] Error clearing history:', error);

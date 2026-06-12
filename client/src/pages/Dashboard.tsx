@@ -9,7 +9,7 @@ import { UserNav } from "@/components/dashboard/UserNav"
 import { Calendar } from "lucide-react"
 
 export default function Dashboard() {
-    const user = JSON.parse(localStorage.getItem('vidhik_user_data') || '{}');
+    const user = JSON.parse(localStorage.getItem('user_profile_data') || '{}');
     const navigate = useNavigate();
 
     useEffect(() => {

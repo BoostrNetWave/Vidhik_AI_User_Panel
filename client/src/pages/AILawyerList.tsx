@@ -65,7 +65,10 @@ export default function AILawyerList() {
                             <Filter className="h-4 w-4 mr-2" />
                             Filters
                         </Button>
-                        <Button className="bg-violet-700 text-white hover:bg-violet-800 rounded-xl font-bold h-11 shadow-sm">
+                        <Button 
+                            className="bg-violet-700 text-white hover:bg-violet-800 rounded-xl font-bold h-11 shadow-sm"
+                            onClick={() => navigate('/cases', { state: { startBookingFlow: true } })}
+                        >
                             Book Consultation
                         </Button>
                     </div>
@@ -121,9 +124,17 @@ export default function AILawyerList() {
                                     <div className="flex flex-col sm:flex-row gap-6">
                                         {/* Profile Image / Avatar Placeholder */}
                                         <div className="relative shrink-0">
-                                             <div className="h-20 w-20 rounded-2xl bg-secondary flex items-center justify-center border border-border shadow-sm">
-                                                 <UserIcon className="h-10 w-10 text-muted-foreground/40" />
-                                             </div>
+                                            <div className="h-20 w-20 rounded-2xl bg-secondary flex items-center justify-center border border-border shadow-sm overflow-hidden">
+                                                {lawyer.avatar ? (
+                                                    <img 
+                                                        src={lawyer.avatar.startsWith('http') ? lawyer.avatar : (lawyer.avatar.startsWith('/') ? `/lawyer${lawyer.avatar}` : `/lawyer/${lawyer.avatar}`)} 
+                                                        alt={lawyer.fullName} 
+                                                        className="h-full w-full object-cover"
+                                                    />
+                                                ) : (
+                                                    <UserIcon className="h-10 w-10 text-muted-foreground/40" />
+                                                )}
+                                            </div>
                                              <div className={`absolute -bottom-1 -right-1 h-5 w-5 rounded-full border-2 border-card flex items-center justify-center ${
                                                  lawyer.isApproved ? "bg-green-500" : "bg-gray-300"
                                              }`}>

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button"
 import { 
     LayoutDashboard, 
@@ -11,7 +11,9 @@ import {
     ChevronRight,
     LogOut,
     Activity,
-    Briefcase
+    Briefcase,
+    MessageSquare,
+    FileText
 } from "lucide-react"
 import { useLocation, useNavigate } from 'react-router-dom';
 
@@ -26,6 +28,10 @@ export default function AdminLayout({ children, userNav }: AdminLayoutProps) {
     const navigate = useNavigate();
     const [isCollapsed, setIsCollapsed] = useState(false);
 
+    useEffect(() => {
+        document.title = "Vidhik AI - Super Admin Panel";
+    }, []);
+
     const toggleSidebar = () => {
         setIsCollapsed(!isCollapsed);
     };
@@ -36,6 +42,8 @@ export default function AdminLayout({ children, userNav }: AdminLayoutProps) {
         { path: '/admin/lawyers', label: 'Lawyer Approval', icon: Gavel },
         { path: '/admin/cases', label: 'Cases & Payouts', icon: Briefcase },
         { path: '/admin/users', label: 'User Management', icon: Users },
+        { path: '/admin/tickets', label: 'Support Tickets', icon: MessageSquare },
+        { path: '/admin/documents', label: 'Client Documents', icon: FileText },
         { path: '/admin/payments', label: 'Financials', icon: CreditCard },
         { path: '/admin/system', label: 'System Health', icon: Activity },
     ];
@@ -87,7 +95,12 @@ export default function AdminLayout({ children, userNav }: AdminLayoutProps) {
                             variant="ghost"
                             className={`w-full justify-start gap-3 h-11 px-3 rounded-lg text-slate-400 hover:bg-red-500/10 hover:text-red-400 transition-all ${isCollapsed ? 'justify-center px-0' : ''}`}
                             onClick={() => {
-                                localStorage.clear();
+                                localStorage.removeItem('user_auth_token');
+                                localStorage.removeItem('user_profile_data');
+                                localStorage.removeItem('vidhik_auth_token');
+                                localStorage.removeItem('vidhik_user_data');
+                                localStorage.removeItem('user_token');
+                                localStorage.removeItem('user_data');
                                 window.location.href = '/user/login';
                             }}
                         >

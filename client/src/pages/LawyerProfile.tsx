@@ -92,8 +92,16 @@ export default function LawyerProfile() {
                         {/* Hero Section */}
                         <div className="flex flex-col md:flex-row gap-8 items-start">
                             <div className="relative shrink-0">
-                                <div className="h-32 w-32 rounded-3xl bg-secondary flex items-center justify-center border border-border shadow-sm">
-                                    <User className="h-16 w-16 text-muted-foreground/40" />
+                                <div className="h-32 w-32 rounded-3xl bg-secondary flex items-center justify-center border border-border shadow-sm overflow-hidden">
+                                    {lawyer.avatar ? (
+                                        <img 
+                                            src={lawyer.avatar.startsWith('http') ? lawyer.avatar : (lawyer.avatar.startsWith('/') ? `/lawyer${lawyer.avatar}` : `/lawyer/${lawyer.avatar}`)} 
+                                            alt={lawyer.fullName} 
+                                            className="h-full w-full object-cover"
+                                        />
+                                    ) : (
+                                        <User className="h-16 w-16 text-muted-foreground/40" />
+                                    )}
                                 </div>
                                 <div className={`absolute -bottom-1 -right-1 h-6 w-6 rounded-full border-4 border-card flex items-center justify-center ${
                                     isOnline ? "bg-green-500" : "bg-gray-300"
@@ -297,7 +305,7 @@ export default function LawyerProfile() {
 
                                 <Button 
                                     className="w-full bg-violet-700 text-white hover:bg-violet-800 rounded-2xl h-14 font-bold text-base shadow-sm transition-all active:scale-[0.98]"
-                                    onClick={() => navigate(`/lawyers/booking/${lawyer._id}`)}
+                                    onClick={() => navigate('/cases', { state: { startBookingWithLawyer: lawyer } })}
                                 >
                                     Proceed to Booking
                                 </Button>

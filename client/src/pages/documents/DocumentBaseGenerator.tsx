@@ -85,11 +85,21 @@ export default function DocumentBaseGenerator({
                 setIsFormCollapsed(true);
                 setGenerationProgress(0);
             }, 500);
-        } catch (error) {
+        } catch (error: any) {
             clearInterval(progressInterval);
             setGenerationProgress(0);
             console.error('Error generating document:', error);
-            toast.error('Failed to generate document. Please try again.');
+            if (error.response?.status === 403 && error.response?.data?.error === 'limit_reached') {
+                toast.error('Subscription limit reached', {
+                    description: error.response.data.message || 'You have reached the monthly document generation limit for your plan.',
+                    action: {
+                        label: 'Upgrade Plan',
+                        onClick: () => window.location.href = '/user/billing'
+                    }
+                });
+            } else {
+                toast.error(error.response?.data?.message || 'Failed to generate document. Please try again.');
+            }
         } finally {
             setTimeout(() => {
                 setIsGenerating(false);
@@ -175,7 +185,7 @@ export default function DocumentBaseGenerator({
         setSaveStatus('saving');
 
         try {
-            const user = JSON.parse(localStorage.getItem('user_data') || '{}');
+            const user = JSON.parse(localStorage.getItem('user_profile_data') || '{}');
             const userId = user._id || user.id;
 
             if (!userId) {

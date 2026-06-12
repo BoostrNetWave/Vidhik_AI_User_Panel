@@ -50,6 +50,8 @@ export default function SignIn() {
             })
 
             // Store token and user data
+            localStorage.setItem('user_auth_token', data.token)
+            localStorage.setItem('user_profile_data', JSON.stringify(data))
             localStorage.setItem('vidhik_auth_token', data.token)
             localStorage.setItem('vidhik_user_data', JSON.stringify(data))
 

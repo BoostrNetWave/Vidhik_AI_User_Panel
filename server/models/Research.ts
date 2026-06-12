@@ -1,6 +1,7 @@
 import mongoose, { Schema, Document } from 'mongoose';
 
 export interface IResearch extends Document {
+    userId: mongoose.Types.ObjectId;
     query: string;
     answer: string;
     title: string;
@@ -9,6 +10,7 @@ export interface IResearch extends Document {
 }
 
 const ResearchSchema: Schema = new Schema({
+    userId: { type: Schema.Types.ObjectId, ref: 'User', required: true },
     query: { type: String, required: true },
     answer: { type: String, required: true },
     title: { type: String, required: true },

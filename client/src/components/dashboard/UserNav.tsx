@@ -18,9 +18,13 @@ import { useNavigate } from "react-router-dom"
 
 export function UserNav() {
     const navigate = useNavigate()
-    const user = JSON.parse(localStorage.getItem('user_data') || '{}')
+    const user = JSON.parse(localStorage.getItem('user_profile_data') || '{}')
 
     const handleLogout = () => {
+        localStorage.removeItem('user_auth_token')
+        localStorage.removeItem('user_profile_data')
+        localStorage.removeItem('vidhik_auth_token')
+        localStorage.removeItem('vidhik_user_data')
         localStorage.removeItem('user_token')
         localStorage.removeItem('user_data')
         navigate('/login')

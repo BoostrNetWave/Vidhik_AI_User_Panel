@@ -6,8 +6,8 @@ interface AdminProtectedRouteProps {
 }
 
 const AdminProtectedRoute: React.FC<AdminProtectedRouteProps> = ({ children }) => {
-    const userDataStr = localStorage.getItem('vidhik_user_data');
-    const token = localStorage.getItem('vidhik_auth_token');
+    const userDataStr = localStorage.getItem('user_profile_data');
+    const token = localStorage.getItem('user_auth_token');
     
     if (!token || !userDataStr) {
         return <Navigate to="/login" replace />;

@@ -31,7 +31,8 @@ import {
     ChevronLeft,
     ChevronRight,
     ChevronsLeft,
-    ChevronsRight
+    ChevronsRight,
+    Upload
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { parseHtmlToDocx } from '@/lib/docxUtils';
@@ -53,10 +54,57 @@ export default function MyDocuments() {
     const [currentPage, setCurrentPage] = useState(1);
     const [itemsPerPage] = useState(10);
 
+    // Document Upload States
+    const [isUploadOpen, setIsUploadOpen] = useState(false);
+    const [uploadTitle, setUploadTitle] = useState("");
+    const [uploadType, setUploadType] = useState("other");
+    const [uploadFile, setUploadFile] = useState<File | null>(null);
+    const [isUploading, setIsUploading] = useState(false);
+
+    const handleUpload = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!uploadFile) {
+            toast.error("Please select a file to upload");
+            return;
+        }
+
+        setIsUploading(true);
+        const user = JSON.parse(localStorage.getItem('user_profile_data') || '{}');
+        const userId = user._id || user.id;
+
+        const formData = new FormData();
+        formData.append("file", uploadFile);
+        formData.append("userId", userId);
+        formData.append("title", uploadTitle || uploadFile.name);
+        formData.append("documentType", uploadType);
+
+        try {
+            const response = await api.post("/documents/upload", formData, {
+                headers: {
+                    "Content-Type": "multipart/form-data"
+                }
+            });
+
+            if (response.data.success) {
+                toast.success("Document uploaded successfully");
+                setIsUploadOpen(false);
+                setUploadFile(null);
+                setUploadTitle("");
+                setUploadType("other");
+                fetchDocuments(); // Refresh documents list
+            }
+        } catch (error: any) {
+            console.error("Upload failed:", error);
+            toast.error(error.response?.data?.message || "Failed to upload document");
+        } finally {
+            setIsUploading(false);
+        }
+    };
+
     const fetchDocuments = async () => {
         setLoading(true);
         try {
-            const user = JSON.parse(localStorage.getItem('user_data') || '{}');
+            const user = JSON.parse(localStorage.getItem('user_profile_data') || '{}');
             const userId = user._id || user.id;
 
             if (userId) {
@@ -242,6 +290,15 @@ export default function MyDocuments() {
                                 Dustbin
                             </button>
                         </div>
+                        {activeTab === 'workspace' && (
+                            <Button
+                                onClick={() => setIsUploadOpen(true)}
+                                className="bg-violet-600 hover:bg-violet-700 text-white rounded-lg flex items-center gap-2 font-semibold text-sm h-9"
+                            >
+                                <Upload className="h-4 w-4" />
+                                Upload Document
+                            </Button>
+                        )}
                         <div className="flex items-center gap-2">
                             <div className="relative w-64">
                                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
@@ -533,6 +590,90 @@ export default function MyDocuments() {
                             )}
                         </Button>
                     </div>
+                </DialogContent>
+            </Dialog>
+
+            {/* Upload Document Modal */}
+            <Dialog open={isUploadOpen} onOpenChange={setIsUploadOpen}>
+                <DialogContent className="sm:max-w-[480px]">
+                    <DialogHeader>
+                        <DialogTitle className="flex items-center gap-2 text-violet-600">
+                            <Upload className="h-5 w-5" />
+                            Upload Document
+                        </DialogTitle>
+                    </DialogHeader>
+                    <form onSubmit={handleUpload} className="space-y-4 pt-4">
+                        <div className="space-y-2">
+                            <label className="text-sm font-semibold text-gray-700">Document Title</label>
+                            <Input
+                                placeholder="Enter document title (optional)"
+                                value={uploadTitle}
+                                onChange={(e) => setUploadTitle(e.target.value)}
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <label className="text-sm font-semibold text-gray-700">Document Type</label>
+                            <select
+                                className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-violet-600 focus:border-violet-600 text-gray-800"
+                                value={uploadType}
+                                onChange={(e) => setUploadType(e.target.value)}
+                            >
+                                <option value="other">Other/Uploaded</option>
+                                <option value="nda">Non-Disclosure Agreement (NDA)</option>
+                                <option value="employment-contract">Employment Contract</option>
+                                <option value="consultant-agreement">Consultant Agreement</option>
+                                <option value="service-agreement">Service Agreement</option>
+                                <option value="commercial-lease">Commercial Lease</option>
+                                <option value="residential-lease">Residential Lease</option>
+                            </select>
+                        </div>
+                        <div className="space-y-2">
+                            <label className="text-sm font-semibold text-gray-700">File (.pdf, .docx, .txt)</label>
+                            <div className="border-2 border-dashed border-gray-200 rounded-xl p-6 flex flex-col items-center justify-center gap-2 bg-gray-50 hover:bg-gray-100/50 transition-colors cursor-pointer relative">
+                                <input
+                                    type="file"
+                                    accept=".pdf,.docx,.txt"
+                                    className="absolute inset-0 opacity-0 cursor-pointer"
+                                    onChange={(e) => {
+                                        const file = e.target.files?.[0];
+                                        if (file) {
+                                            setUploadFile(file);
+                                            if (!uploadTitle) setUploadTitle(file.name.split('.').slice(0, -1).join('.'));
+                                        }
+                                    }}
+                                />
+                                <Upload className="h-8 w-8 text-gray-400" />
+                                <span className="text-sm font-medium text-gray-600">
+                                    {uploadFile ? uploadFile.name : "Click to select or drag file here"}
+                                </span>
+                                <span className="text-xs text-gray-400">PDF, DOCX, or TXT up to 10MB</span>
+                            </div>
+                        </div>
+                        <div className="flex justify-end gap-3 pt-4 border-t">
+                            <Button
+                                type="button"
+                                variant="outline"
+                                onClick={() => setIsUploadOpen(false)}
+                                disabled={isUploading}
+                            >
+                                Cancel
+                            </Button>
+                            <Button
+                                type="submit"
+                                disabled={isUploading || !uploadFile}
+                                className="bg-violet-600 hover:bg-violet-700 text-white font-semibold"
+                            >
+                                {isUploading ? (
+                                    <>
+                                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                        Uploading...
+                                    </>
+                                ) : (
+                                    'Upload & Save'
+                                )}
+                            </Button>
+                        </div>
+                    </form>
                 </DialogContent>
             </Dialog>
         </DashboardLayout>

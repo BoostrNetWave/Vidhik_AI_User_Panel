@@ -30,6 +30,17 @@ export default defineConfig({
                 target: 'http://localhost:5003',
                 changeOrigin: true,
                 secure: false,
+            },
+            '/lawyer/uploads': {
+                target: 'http://localhost:5025',
+                changeOrigin: true,
+                secure: false,
+                rewrite: (path) => path.replace(/^\/lawyer\/uploads/, '/uploads'),
+            },
+            '/uploads': {
+                target: 'http://localhost:5025',
+                changeOrigin: true,
+                secure: false,
             }
         }
     }

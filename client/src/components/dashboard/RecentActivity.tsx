@@ -22,7 +22,7 @@ export function RecentActivity() {
     useEffect(() => {
         const fetchDocuments = async () => {
             try {
-                const user = JSON.parse(localStorage.getItem('user_data') || '{}');
+                const user = JSON.parse(localStorage.getItem('user_profile_data') || '{}');
                 const userId = user._id || user.id;
 
                 if (userId) {

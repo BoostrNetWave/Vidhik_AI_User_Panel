@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useEffect, useState, useCallback } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
 import { 
     Briefcase, 
     AlertCircle, 
@@ -22,7 +22,9 @@ import {
     ArrowLeft,
     Lock,
     Video,
-    Download
+    Download,
+    CheckCircle2,
+    Languages
 } from "lucide-react";
 import DashboardLayout from "@/layout/DashboardLayout";
 import { UserNav } from "@/components/dashboard/UserNav";
@@ -32,15 +34,19 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+import { Progress } from "@/components/ui/progress";
 import { caseService, ICase } from "@/services/caseService";
 import { lawyerService } from "@/services/lawyerService";
 import { toast } from "sonner";
 
 export default function CasesPage() {
     const navigate = useNavigate();
+    const location = useLocation();
     const [cases, setCases] = useState<ICase[]>([]);
     const [loading, setLoading] = useState<boolean>(true);
     const [selectedCase, setSelectedCase] = useState<ICase | null>(null);
+    const [caseSearchQuery, setCaseSearchQuery] = useState("");
 
     // Start New Case Flow States
     const [showNewCaseFlow, setShowNewCaseFlow] = useState<boolean>(false);
@@ -77,22 +83,25 @@ export default function CasesPage() {
         return days;
     };
 
-    const fetchCases = async () => {
-        setLoading(true);
+    const fetchCases = useCallback(async (isSilent = false) => {
+        if (!isSilent) setLoading(true);
         try {
             const data = await caseService.getClientCases();
             setCases(data);
-            if (selectedCase) {
-                const updated = data.find(c => c._id === selectedCase._id);
-                if (updated) setSelectedCase(updated);
-            }
+            setSelectedCase(prevSelected => {
+                if (!prevSelected) return null;
+                const updated = data.find(c => c._id === prevSelected._id);
+                return updated || prevSelected;
+            });
         } catch (err: any) {
             console.error(err);
-            toast.error(err.response?.data?.message || "Failed to load cases");
+            if (!isSilent) {
+                toast.error(err.response?.data?.message || "Failed to load cases");
+            }
         } finally {
-            setLoading(false);
+            if (!isSilent) setLoading(false);
         }
-    };
+    }, []);
 
     const fetchLawyers = async () => {
         try {
@@ -107,7 +116,29 @@ export default function CasesPage() {
     useEffect(() => {
         fetchCases();
         fetchLawyers();
-    }, []);
+
+        const interval = setInterval(() => {
+            fetchCases(true);
+        }, 5000);
+
+        return () => clearInterval(interval);
+    }, [fetchCases]);
+
+    useEffect(() => {
+        if (location.state) {
+            if (location.state.startBookingWithLawyer) {
+                setSelectedLawyer(location.state.startBookingWithLawyer);
+                setShowNewCaseFlow(true);
+                setSelectedCase(null);
+                window.history.replaceState({}, document.title);
+            } else if (location.state.startBookingFlow) {
+                setSelectedLawyer(null);
+                setShowNewCaseFlow(true);
+                setSelectedCase(null);
+                window.history.replaceState({}, document.title);
+            }
+        }
+    }, [location.state]);
 
     const handleApprovePlan = async () => {
         if (!selectedCase) return;
@@ -133,6 +164,11 @@ export default function CasesPage() {
 
         return matchesSearch && matchesCategory;
     });
+
+    const filteredCases = cases.filter(c => 
+        (c.title || "").toLowerCase().includes(caseSearchQuery.toLowerCase()) ||
+        (c.lawyer?.fullName || "").toLowerCase().includes(caseSearchQuery.toLowerCase())
+    );
 
     const handleSendBookingRequest = async () => {
         if (!selectedLawyer) return;
@@ -206,7 +242,7 @@ export default function CasesPage() {
                                 setShowNewCaseFlow(true);
                                 setSelectedCase(null);
                             }}
-                            className="bg-violet-700 text-white hover:bg-violet-850 rounded-xl font-bold px-6 py-5 shadow-lg shadow-violet-100 flex items-center gap-2"
+                            className="bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-755 hover:to-indigo-755 bg-violet-700 text-white rounded-xl font-bold px-6 py-5 shadow-lg shadow-violet-200/50 flex items-center gap-2 hover:scale-[1.01] active:scale-[0.99] transition-all duration-200"
                         >
                             <span>+ Start New Case</span>
                         </Button>
@@ -279,13 +315,16 @@ export default function CasesPage() {
                                                 <CardContent className="p-6">
                                                     <div className="flex gap-4">
                                                         <div className="relative shrink-0">
-                                                            <div className="h-16 w-16 rounded-2xl bg-slate-100 flex items-center justify-center border border-border">
-                                                                {lawyer.avatar ? (
-                                                                    <img src={`http://localhost:3000/lawyer${lawyer.avatar}`} alt="Avatar" className="h-full w-full object-cover rounded-2xl" />
-                                                                ) : (
-                                                                    <User className="h-8 w-8 text-muted-foreground/45" />
-                                                                )}
-                                                            </div>
+                                                            <Avatar className="h-16 w-16 rounded-2xl border border-border shrink-0">
+                                                                <AvatarImage 
+                                                                    src={lawyer.avatar ? `http://localhost:3000/lawyer${lawyer.avatar}` : ""} 
+                                                                    alt={lawyer.fullName} 
+                                                                    className="object-cover"
+                                                                />
+                                                                <AvatarFallback className="rounded-2xl bg-slate-100 text-slate-400">
+                                                                    <User className="h-8 w-8" />
+                                                                </AvatarFallback>
+                                                            </Avatar>
                                                             <div className="absolute -bottom-1 -right-1 h-4.5 w-4.5 rounded-full border-2 border-white bg-green-500"></div>
                                                         </div>
                                                         <div className="flex-1 space-y-3">
@@ -338,29 +377,87 @@ export default function CasesPage() {
                                 {/* Left Side: Lawyer Info */}
                                 <div className="lg:col-span-4 space-y-6 bg-slate-50/50 border border-border p-6 rounded-3xl">
                                     <div className="flex items-center gap-4">
-                                        <div className="h-16 w-16 rounded-2xl bg-white border border-border overflow-hidden shrink-0 flex items-center justify-center">
-                                            {selectedLawyer.avatar ? (
-                                                <img src={`http://localhost:3000/lawyer${selectedLawyer.avatar}`} alt="Avatar" className="h-full w-full object-cover" />
-                                            ) : (
-                                                <User className="h-8 w-8 text-slate-400" />
-                                            )}
-                                        </div>
-                                        <div>
-                                            <h3 className="font-extrabold text-slate-900 text-lg leading-tight">{selectedLawyer.fullName}</h3>
+                                        <Avatar className="h-16 w-16 rounded-2xl border border-border shrink-0">
+                                            <AvatarImage 
+                                                src={selectedLawyer.avatar ? `http://localhost:3000/lawyer${selectedLawyer.avatar}` : ""} 
+                                                alt={selectedLawyer.fullName} 
+                                                className="object-cover"
+                                            />
+                                            <AvatarFallback className="rounded-2xl bg-slate-50 text-slate-400">
+                                                <User className="h-8 w-8" />
+                                            </AvatarFallback>
+                                        </Avatar>
+                                        <div className="space-y-1">
+                                            <div className="flex items-center gap-1.5">
+                                                <h3 className="font-extrabold text-slate-900 text-base leading-none">{selectedLawyer.fullName}</h3>
+                                                {selectedLawyer.isVerified && <ShieldCheck className="h-4 w-4 text-violet-750" />}
+                                            </div>
                                             <p className="text-xs text-violet-700 font-extrabold uppercase tracking-widest mt-0.5">{selectedLawyer.expertise || "General Practice"}</p>
                                         </div>
                                     </div>
+                                    
                                     <Separator />
-                                    <div className="space-y-4">
-                                        <div className="space-y-1">
-                                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Biography</span>
-                                            <p className="text-xs text-slate-600 leading-relaxed line-clamp-4">{selectedLawyer.bio || "No professional biography provided."}</p>
+                                    
+                                    <div className="space-y-4 text-xs font-semibold text-slate-650">
+                                        {/* Core Ratings & Metadata */}
+                                        <div className="grid grid-cols-3 gap-2 py-1 bg-white border border-slate-150 rounded-xl p-3 shadow-sm text-center">
+                                            <div className="space-y-0.5">
+                                                <span className="text-[8px] uppercase font-bold text-slate-400">Rating</span>
+                                                <p className="text-slate-900 font-black flex items-center justify-center gap-1">
+                                                    <Star size={11} className="text-amber-500 fill-amber-500" />
+                                                    {selectedLawyer.rating || "5.0"}
+                                                </p>
+                                            </div>
+                                            <div className="space-y-0.5 border-x border-slate-100">
+                                                <span className="text-[8px] uppercase font-bold text-slate-400">Experience</span>
+                                                <p className="text-slate-900 font-black flex items-center justify-center gap-1">
+                                                    <Clock size={11} className="text-violet-700" />
+                                                    {selectedLawyer.experience || "10+"}
+                                                </p>
+                                            </div>
+                                            <div className="space-y-0.5">
+                                                <span className="text-[8px] uppercase font-bold text-slate-400">Location</span>
+                                                <p className="text-slate-900 font-black flex items-center justify-center gap-1 truncate max-w-[80px] mx-auto">
+                                                    <MapPin size={11} className="text-violet-700" />
+                                                    {selectedLawyer.location || "Remote"}
+                                                </p>
+                                            </div>
                                         </div>
+
+                                        {/* Biography */}
                                         <div className="space-y-1">
-                                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Bar Council & Memberships</span>
-                                            <div className="flex flex-col gap-1.5 text-xs text-slate-700 font-medium">
-                                                <span className="flex items-center gap-1.5"><Award size={13} className="text-violet-700" /> Bar Council of India</span>
-                                                <span className="flex items-center gap-1.5"><Award size={13} className="text-violet-700" /> Supreme Court Bar Association</span>
+                                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">Advocate Biography</span>
+                                            <p className="text-xs text-slate-600 leading-relaxed bg-white border border-slate-150 p-3.5 rounded-xl font-medium">{selectedLawyer.bio || "No professional biography provided."}</p>
+                                        </div>
+
+                                        {/* Practice Areas / Tags */}
+                                        <div className="space-y-1.5">
+                                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">Practice Areas</span>
+                                            <div className="flex flex-wrap gap-1.5">
+                                                {(selectedLawyer.practiceAreas || ["Legal Consult", "Case Representation"]).map((tag: string) => (
+                                                    <Badge key={tag} variant="secondary" className="bg-slate-100 text-slate-600 border-none font-semibold text-[8px] px-2 rounded-md uppercase tracking-wider">
+                                                        {tag}
+                                                    </Badge>
+                                                ))}
+                                            </div>
+                                        </div>
+
+                                        {/* Bar Council & Memberships */}
+                                        <div className="space-y-1.5">
+                                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block flex items-center gap-1"><Award size={12} className="text-violet-750" /> Bar Memberships</span>
+                                            <div className="flex flex-col gap-1.5 text-slate-700 font-medium bg-white border border-slate-150 p-3.5 rounded-xl">
+                                                <span className="flex items-center gap-1.5">✓ Bar Council of India</span>
+                                                <span className="flex items-center gap-1.5">✓ Supreme Court Bar Association</span>
+                                            </div>
+                                        </div>
+
+                                        {/* Languages */}
+                                        <div className="space-y-1.5">
+                                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block flex items-center gap-1"><Languages size={12} className="text-violet-750" /> Languages</span>
+                                            <div className="flex flex-wrap gap-1.5">
+                                                {(selectedLawyer.languages && selectedLawyer.languages.length > 0 ? selectedLawyer.languages : ["English", "Hindi"]).map((l: string) => (
+                                                    <Badge key={l} variant="outline" className="font-semibold text-[10px]">{l}</Badge>
+                                                ))}
                                             </div>
                                         </div>
                                     </div>
@@ -613,13 +710,16 @@ export default function CasesPage() {
                                     <div className="md:col-span-5 bg-slate-50 border border-slate-200 p-6 rounded-3xl space-y-6">
                                         <h3 className="font-extrabold text-slate-900 text-sm uppercase tracking-wider">Booking Summary</h3>
                                         <div className="flex gap-3">
-                                            <div className="h-12 w-12 rounded-xl bg-white border border-border flex items-center justify-center shrink-0 overflow-hidden">
-                                                {targetCase.lawyer?.avatar ? (
-                                                    <img src={`http://localhost:3000/lawyer${targetCase.lawyer.avatar}`} alt="Avatar" className="h-full w-full object-cover" />
-                                                ) : (
-                                                    <User className="h-6 w-6 text-slate-400" />
-                                                )}
-                                            </div>
+                                            <Avatar className="h-12 w-12 rounded-xl border border-border shrink-0">
+                                                <AvatarImage 
+                                                    src={targetCase.lawyer?.avatar ? `http://localhost:3000/lawyer${targetCase.lawyer.avatar}` : ""} 
+                                                    alt={targetCase.lawyer?.fullName || "Avatar"} 
+                                                    className="object-cover"
+                                                />
+                                                <AvatarFallback className="rounded-xl bg-white text-slate-400">
+                                                    <User className="h-6 w-6" />
+                                                </AvatarFallback>
+                                            </Avatar>
                                             <div>
                                                 <h4 className="font-extrabold text-slate-900 text-sm leading-tight">{targetCase.lawyer?.fullName}</h4>
                                                 <p className="text-[10px] text-violet-750 font-extrabold uppercase mt-0.5">{targetCase.lawyer?.expertise || "General Practice"}</p>
@@ -670,68 +770,106 @@ export default function CasesPage() {
                         
                         {/* Left Column: Case List (4 Cols) */}
                         <div className="lg:col-span-4 bg-card border border-border rounded-3xl p-6 space-y-6 shadow-sm">
-                            <h3 className="font-bold text-slate-900 text-lg">Hired Lawyers & Cases</h3>
+                            <div className="flex justify-between items-center">
+                                <h3 className="font-extrabold text-slate-900 text-lg">My Cases</h3>
+                                <Badge className="bg-violet-50 text-violet-700 hover:bg-violet-50 text-[10px] font-black border-none px-2 py-0.5 rounded">
+                                    {cases.length} Total
+                                </Badge>
+                            </div>
+
+                            {/* Search bar inside sidebar */}
+                            {cases.length > 0 && (
+                                <div className="relative">
+                                    <Search className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
+                                    <Input 
+                                        className="pl-9 h-10 text-xs rounded-xl bg-slate-50/50 border-slate-200 focus-visible:ring-violet-500 font-semibold"
+                                        placeholder="Search cases or advocates..."
+                                        value={caseSearchQuery}
+                                        onChange={(e) => setCaseSearchQuery(e.target.value)}
+                                    />
+                                </div>
+                            )}
 
                             {loading && cases.length === 0 ? (
                                 <div className="py-12 text-center">
-                                    <div className="inline-block w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
+                                    <div className="inline-block w-6 h-6 border-2 border-violet-700 border-t-transparent rounded-full animate-spin"></div>
                                     <p className="mt-2 text-xs text-slate-400 font-bold">Loading engagements...</p>
                                 </div>
                             ) : cases.length === 0 ? (
-                                <div className="py-16 text-center text-slate-400 border border-dashed border-border rounded-2xl">
-                                    <Briefcase size={36} className="mx-auto mb-2 text-muted-foreground/30" />
-                                    <p className="font-bold text-sm">No active cases</p>
-                                    <p className="text-xs text-slate-400 px-4 mt-1">Once you hire a lawyer for a case, it will show up here.</p>
+                                <div className="py-16 text-center text-slate-400 border border-dashed border-border rounded-2xl bg-slate-50/50 p-6">
+                                    <div className="inline-flex h-14 w-14 items-center justify-center rounded-full bg-violet-50 text-violet-700 mb-4 border border-violet-100 shadow-sm">
+                                        <Briefcase size={24} />
+                                    </div>
+                                    <p className="font-extrabold text-slate-900 text-base">No active cases</p>
+                                    <p className="text-xs text-slate-500 max-w-[220px] mx-auto mt-2 leading-relaxed font-semibold">Once you hire a lawyer for a case or book a consultation, it will show up here.</p>
+                                    <Button
+                                        onClick={() => setShowNewCaseFlow(true)}
+                                        className="mt-5 bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 text-white rounded-xl font-bold text-xs h-10 px-6 shadow-lg shadow-violet-100/30"
+                                    >
+                                        + Start First Case
+                                    </Button>
+                                </div>
+                            ) : filteredCases.length === 0 ? (
+                                <div className="py-12 text-center text-slate-450">
+                                    <Briefcase size={28} className="mx-auto mb-2 text-slate-300" />
+                                    <p className="font-bold text-sm text-slate-500">No matching cases</p>
+                                    <p className="text-xs text-slate-400 mt-1">Try adjusting your search query.</p>
                                 </div>
                             ) : (
                                 <div className="space-y-3 max-h-[600px] overflow-y-auto pr-1">
-                                    {cases.map((c) => (
+                                    {filteredCases.map((c) => (
                                         <div
                                             key={c._id}
                                             onClick={() => setSelectedCase(c)}
                                             className={`p-4 rounded-2xl border transition-all cursor-pointer ${
                                                 selectedCase?._id === c._id
-                                                    ? "border-primary bg-primary/5 shadow-md shadow-primary/5"
-                                                    : "border-border bg-card hover:border-slate-350 hover:shadow-sm"
+                                                    ? "border-violet-600 bg-violet-50/30 shadow-sm"
+                                                    : "border-border bg-card hover:border-slate-300 hover:shadow-sm"
                                             }`}
                                         >
-                                            <div className="flex justify-between items-start gap-2 mb-2">
-                                                <h4 className="font-bold text-slate-900 text-sm leading-snug truncate">{c.title}</h4>
-                                                <Badge 
-                                                    variant={c.status === "active" ? "default" : "secondary"} 
-                                                    className={`text-[9px] shrink-0 font-extrabold uppercase px-2 py-0.5 rounded-full ${
-                                                        c.status === 'pending_lawyer' 
-                                                        ? 'bg-amber-100 text-amber-700 hover:bg-amber-100' 
-                                                        : c.status === 'pending_payment' 
-                                                            ? 'bg-orange-100 text-orange-700 hover:bg-orange-100' 
-                                                            : ''
-                                                    }`}
-                                                >
-                                                    {c.status === 'pending_lawyer' ? 'Awaiting Lawyer' : c.status === 'pending_payment' ? 'Awaiting Payment' : c.status}
-                                                </Badge>
-                                            </div>
-                                            <p className="text-xs text-slate-500 line-clamp-2 mb-3">{c.description}</p>
-                                            
-                                            <div className="flex justify-between items-center text-[10px] text-slate-400 font-bold border-t border-border pt-3">
-                                                <div className="flex items-center gap-1.5">
-                                                    <User size={12} className="text-slate-400" />
-                                                    <span className="text-slate-700 truncate max-w-[120px]">
-                                                        {c.lawyer?.fullName || "Assigned Lawyer"}
-                                                    </span>
+                                            <div className="flex gap-3">
+                                                <Avatar className="h-10 w-10 rounded-xl border border-slate-150 shrink-0">
+                                                    <AvatarImage 
+                                                        src={c.lawyer?.avatar ? (c.lawyer.avatar.startsWith('http') ? c.lawyer.avatar : (c.lawyer.avatar.startsWith('/') ? `/lawyer${c.lawyer.avatar}` : `/lawyer/${c.lawyer.avatar}`)) : ""} 
+                                                        alt={c.lawyer?.fullName || "Lawyer Avatar"} 
+                                                        className="object-cover"
+                                                    />
+                                                    <AvatarFallback className="rounded-xl bg-slate-50 text-slate-400">
+                                                        <User className="h-5 w-5" />
+                                                    </AvatarFallback>
+                                                </Avatar>
+                                                <div className="flex-1 min-w-0 space-y-1">
+                                                    <div className="flex justify-between items-start gap-1.5">
+                                                        <h4 className="font-extrabold text-slate-900 text-sm leading-snug truncate">{c.title}</h4>
+                                                    </div>
+                                                    <p className="text-[10px] text-slate-500 font-semibold truncate">
+                                                        Adv. {c.lawyer?.fullName || "Legal Counsel"}
+                                                    </p>
+                                                    <div className="flex items-center gap-1.5 pt-1.5">
+                                                        <Badge 
+                                                            className={`text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full border-none shadow-none ${
+                                                                c.status === 'pending_lawyer' 
+                                                                ? 'bg-amber-50 text-amber-700 border border-amber-200/50' 
+                                                                : c.status === 'pending_payment' 
+                                                                    ? 'bg-orange-50 text-orange-700 border border-orange-200/50' 
+                                                                    : c.status === 'active'
+                                                                        ? 'bg-violet-50 text-violet-705 border border-violet-200/50'
+                                                                        : 'bg-green-50 text-green-700 border border-green-200/50'
+                                                            }`}
+                                                        >
+                                                            {c.status === 'pending_lawyer' ? 'Awaiting Lawyer' : c.status === 'pending_payment' ? 'Awaiting Payment' : c.status}
+                                                        </Badge>
+                                                    </div>
                                                 </div>
-                                                <span className="text-slate-900 font-black">₹{c.totalFee.toLocaleString()}</span>
                                             </div>
-
-                                            {/* Small Progress Bar */}
-                                            <div className="mt-3 w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
-                                                <div 
-                                                    className="bg-primary h-1.5 rounded-full transition-all duration-500" 
-                                                    style={{ width: `${c.currentProgress}%` }}
-                                                ></div>
-                                            </div>
-                                            <div className="mt-1 flex justify-between items-center text-[9px] font-black text-slate-400 uppercase tracking-widest">
-                                                <span>Progress</span>
-                                                <span className="text-primary">{c.currentProgress}%</span>
+                                            
+                                            {/* Progress bar */}
+                                            <div className="mt-4 pt-3 border-t border-slate-50">
+                                                <div className="flex justify-between items-center text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1.5">
+                                                    <span>Verification Progress</span>
+                                                    <span className="text-violet-705">{c.currentProgress}%</span>
+                                                </div>
+                                                <Progress value={c.currentProgress} className="h-1.5 bg-slate-100 [&>div]:bg-violet-700" />
                                             </div>
                                         </div>
                                     ))}
@@ -749,61 +887,94 @@ export default function CasesPage() {
                                         <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 border-b border-border pb-6">
                                             <div className="space-y-1">
                                                 <h2 className="text-2xl font-bold text-slate-900 tracking-tight leading-tight">{selectedCase.title}</h2>
-                                                <p className="text-xs text-slate-400 font-medium">Case Ref: <span className="font-mono">{selectedCase._id}</span></p>
-                                            </div>
-                                            <div className="flex flex-row items-center gap-6 shrink-0 bg-slate-50 border border-slate-100 rounded-2xl px-6 py-4">
-                                                <div>
-                                                    <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Assigned Lawyer</p>
-                                                    <p className="text-sm font-black text-slate-900">{selectedCase.lawyer?.fullName}</p>
+                                                <div className="flex items-center gap-2 mt-1.5">
+                                                    <span className="text-xs text-slate-400 font-semibold">Case Reference:</span>
+                                                    <span className="font-mono text-[10px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded font-bold">{selectedCase._id}</span>
                                                 </div>
-                                                <div className="w-px h-8 bg-slate-250" />
+                                            </div>
+                                            <div className="flex flex-row items-center gap-6 shrink-0 bg-slate-50 border border-slate-150/40 rounded-2xl px-6 py-4">
+                                                <div>
+                                                    <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Case Status</p>
+                                                    <Badge 
+                                                        className={`text-[10px] font-black uppercase tracking-wider px-2.5 py-0.5 rounded-full border-none shadow-none mt-1 ${
+                                                            selectedCase.status === 'pending_lawyer' 
+                                                            ? 'bg-amber-100 text-amber-800' 
+                                                            : selectedCase.status === 'pending_payment' 
+                                                                ? 'bg-orange-100 text-orange-800' 
+                                                                : selectedCase.status === 'active'
+                                                                    ? 'bg-violet-100 text-violet-800'
+                                                                    : 'bg-green-100 text-green-800'
+                                                        }`}
+                                                    >
+                                                        {selectedCase.status === 'pending_lawyer' ? 'Awaiting Lawyer' : selectedCase.status === 'pending_payment' ? 'Awaiting Payment' : selectedCase.status}
+                                                    </Badge>
+                                                </div>
+                                                <div className="w-px h-8 bg-slate-200" />
                                                 <div>
                                                     <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Total Contract Fee</p>
-                                                    <p className="text-sm font-black text-primary">₹{selectedCase.totalFee.toLocaleString()}</p>
+                                                    <p className="text-sm font-black text-violet-700 mt-1">₹{selectedCase.totalFee.toLocaleString()}</p>
                                                 </div>
                                             </div>
                                         </div>
-
+ 
                                         {/* Lawyer Details card */}
-                                        <div className="bg-slate-50/50 border border-border p-4 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center gap-4">
-                                            <div className="h-12 w-12 rounded-xl bg-violet-100 border border-violet-200 flex items-center justify-center text-violet-700 font-black text-base shrink-0 overflow-hidden">
-                                                {selectedCase.lawyer?.avatar ? (
-                                                    <img 
-                                                        src={`http://localhost:3000/lawyer${selectedCase.lawyer.avatar}`} 
-                                                        alt="Lawyer Avatar" 
-                                                        className="h-full w-full object-cover"
+                                        <div className="bg-slate-50/50 border border-border p-5 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                                            <div className="flex items-center gap-4">
+                                                <Avatar className="h-14 w-14 rounded-xl border border-violet-200 shrink-0">
+                                                    <AvatarImage 
+                                                        src={selectedCase.lawyer?.avatar ? (selectedCase.lawyer.avatar.startsWith('http') ? selectedCase.lawyer.avatar : (selectedCase.lawyer.avatar.startsWith('/') ? `/lawyer${selectedCase.lawyer.avatar}` : `/lawyer/${selectedCase.lawyer.avatar}`)) : ""} 
+                                                        alt={selectedCase.lawyer?.fullName || "Lawyer"} 
+                                                        className="object-cover"
                                                     />
-                                                ) : (
-                                                    selectedCase.lawyer?.fullName.charAt(0).toUpperCase()
-                                                )}
+                                                    <AvatarFallback className="rounded-xl bg-violet-50 text-violet-700">
+                                                        <User className="h-7 w-7 text-violet-400" />
+                                                    </AvatarFallback>
+                                                </Avatar>
+                                                <div>
+                                                    <div className="flex items-center gap-2">
+                                                        <h4 className="font-extrabold text-slate-900 text-sm">{selectedCase.lawyer?.fullName}</h4>
+                                                        <span className="text-[9px] font-bold text-violet-700 bg-violet-50 px-1.5 py-0.5 rounded border border-violet-100 uppercase tracking-wider">VERIFIED ADVOCATE</span>
+                                                    </div>
+                                                    <p className="text-xs text-slate-500 font-semibold mt-1">{selectedCase.lawyer?.title || "Senior Counsel"} • {selectedCase.lawyer?.expertise || "Corporate Specialist"}</p>
+                                                    <p className="text-[10px] text-slate-400 mt-1 font-bold">Contact: {selectedCase.lawyer?.email}</p>
+                                                </div>
                                             </div>
-                                            <div>
-                                                <h4 className="font-bold text-slate-900 text-sm">{selectedCase.lawyer?.fullName}</h4>
-                                                <p className="text-xs text-slate-500 font-medium mt-0.5">{selectedCase.lawyer?.title || "Senior Counsel"} • {selectedCase.lawyer?.expertise || "Corporate Specialist"}</p>
-                                                <p className="text-[10px] text-slate-400 mt-1 font-semibold">Contact: {selectedCase.lawyer?.email}</p>
-                                            </div>
+                                            <Button 
+                                                variant="outline" 
+                                                className="rounded-xl text-xs font-bold border-slate-200 hover:bg-slate-50 h-9 px-4 gap-1.5"
+                                                onClick={() => navigate(`/lawyers/${selectedCase.lawyer?._id}`)}
+                                            >
+                                                <span>View Full Profile</span>
+                                                <ExternalLink size={12} />
+                                            </Button>
                                         </div>
-
+ 
                                         {/* Scheduling/Date Details (if booking request) */}
                                         {selectedCase.bookingDate && (
-                                            <div className="grid grid-cols-2 gap-4 bg-slate-50 border border-border rounded-xl p-4 text-xs font-semibold text-slate-600">
-                                                <div>
-                                                    <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Scheduled Consultation Date</p>
-                                                    <p className="text-sm font-black text-slate-900 mt-1">{new Date(selectedCase.bookingDate).toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
+                                            <div className="grid grid-cols-2 gap-4 bg-slate-55 bg-slate-50 border border-border rounded-2xl p-5 text-xs font-semibold text-slate-600 shadow-sm">
+                                                <div className="space-y-1">
+                                                    <p className="text-[9px] font-bold text-slate-405 text-slate-400 uppercase tracking-widest">Scheduled Consultation Date</p>
+                                                    <p className="text-sm font-black text-slate-900 flex items-center gap-1.5 mt-1.5">
+                                                        <Calendar className="h-4 w-4 text-violet-700" />
+                                                        {new Date(selectedCase.bookingDate).toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+                                                    </p>
                                                 </div>
-                                                <div>
-                                                    <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Scheduled Consultation Time</p>
-                                                    <p className="text-sm font-black text-slate-900 mt-1">{selectedCase.bookingTime}</p>
+                                                <div className="space-y-1">
+                                                    <p className="text-[9px] font-bold text-slate-405 text-slate-400 uppercase tracking-widest">Scheduled Consultation Time</p>
+                                                    <p className="text-sm font-black text-slate-900 flex items-center gap-1.5 mt-1.5">
+                                                        <Clock className="h-4 w-4 text-violet-700" />
+                                                        {selectedCase.bookingTime}
+                                                    </p>
                                                 </div>
                                             </div>
                                         )}
-
+ 
                                         {/* Case Description */}
                                         <div className="space-y-2">
                                             <h4 className="font-bold text-slate-900 text-sm">Engagement Scope</h4>
-                                            <p className="text-xs text-slate-600 leading-relaxed bg-slate-50/40 border border-border rounded-xl p-4">{selectedCase.description}</p>
+                                            <p className="text-xs text-slate-600 leading-relaxed bg-slate-50 border border-slate-200/60 rounded-xl p-4">{selectedCase.description}</p>
                                         </div>
-
+ 
                                         <Separator />
 
                                         {selectedCase.status === 'pending_lawyer' && (
@@ -998,21 +1169,25 @@ export default function CasesPage() {
                                                                         {/* Dot */}
                                                                         <div className={`absolute -left-[33px] top-1.5 h-4 w-4 rounded-full border-4 border-white ${
                                                                             isCompleted 
-                                                                                ? "bg-green-500 shadow-md ring-4 ring-green-50" 
+                                                                                ? "bg-green-500 shadow-md ring-4 ring-green-100" 
                                                                                 : isInProgress 
-                                                                                    ? "bg-primary animate-pulse ring-4 ring-indigo-50" 
+                                                                                    ? "bg-violet-700 animate-pulse ring-4 ring-violet-100" 
                                                                                     : "bg-slate-300"
                                                                         }`} />
 
-                                                                        <div className="bg-card border border-border rounded-2xl p-5 space-y-3 hover:shadow-sm transition-all duration-200">
+                                                                        <div className="bg-white border border-slate-200/60 rounded-2xl p-5 space-y-3 hover:shadow-md hover:border-slate-300 transition-all duration-200">
                                                                             <div className="flex justify-between items-center gap-4">
                                                                                 <div>
                                                                                     <span className="font-mono text-[9px] font-black text-slate-400">STAGE {idx + 1} ({m.progressIncrement}%)</span>
                                                                                     <h4 className="font-bold text-slate-900 text-sm mt-0.5">{m.title}</h4>
                                                                                 </div>
-                                                                                <Badge variant={
-                                                                                    isCompleted ? "default" : isInProgress ? "secondary" : "outline"
-                                                                                } className="text-[9px] font-bold uppercase">
+                                                                                <Badge className={`text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded border-none shadow-none ${
+                                                                                    isCompleted 
+                                                                                    ? "bg-green-50 text-green-700 hover:bg-green-50" 
+                                                                                    : isInProgress 
+                                                                                        ? "bg-violet-50 text-violet-700 hover:bg-violet-50" 
+                                                                                        : "bg-slate-50 text-slate-400 hover:bg-slate-50"
+                                                                                }`}>
                                                                                     {m.status.replace('_', ' ')}
                                                                                 </Badge>
                                                                             </div>
@@ -1111,13 +1286,72 @@ export default function CasesPage() {
                                     </CardContent>
                                 </Card>
                             ) : (
-                                <Card className="rounded-3xl border border-border bg-card shadow-sm p-12 text-center">
-                                    <Briefcase size={48} className="mx-auto mb-4 text-muted-foreground/30" />
-                                    <h3 className="font-bold text-slate-900 text-xl">Select a Case</h3>
-                                    <p className="text-slate-500 text-sm max-w-md mx-auto mt-2">
-                                        Choose an engagement from the sidebar list to view detailed roadmaps, lawyer bios, upload proofs, and monitor payment approvals.
-                                    </p>
-                                </Card>
+                                <div className="space-y-6 animate-in fade-in duration-500">
+                                    {/* Stats grid */}
+                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                        <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm space-y-2.5">
+                                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">Active Cases</span>
+                                            <div className="flex items-center gap-3">
+                                                <div className="h-10 w-10 rounded-xl bg-violet-50 flex items-center justify-center text-violet-700">
+                                                    <Briefcase size={20} />
+                                                </div>
+                                                <span className="text-2xl font-black text-slate-900">{cases.filter(c => c.status === 'active').length}</span>
+                                            </div>
+                                        </div>
+                                        <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm space-y-2.5">
+                                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">Pending Actions</span>
+                                            <div className="flex items-center gap-3">
+                                                <div className="h-10 w-10 rounded-xl bg-amber-50 flex items-center justify-center text-amber-600">
+                                                    <Clock size={20} />
+                                                </div>
+                                                <span className="text-2xl font-black text-slate-900">
+                                                    {cases.filter(c => c.status === 'pending_payment' || c.status === 'pending_lawyer').length}
+                                                </span>
+                                            </div>
+                                        </div>
+                                        <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm space-y-2.5">
+                                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">Completed</span>
+                                            <div className="flex items-center gap-3">
+                                                <div className="h-10 w-10 rounded-xl bg-emerald-50 flex items-center justify-center text-emerald-600">
+                                                    <CheckCircle2 size={20} />
+                                                </div>
+                                                <span className="text-2xl font-black text-slate-900">{cases.filter(c => c.status === 'completed').length}</span>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Select a Case Hero Panel */}
+                                    <div className="rounded-[2.5rem] border border-slate-200 bg-white p-10 shadow-sm text-center space-y-6 relative overflow-hidden">
+                                        <div className="absolute top-0 right-0 w-32 h-32 bg-violet-100/30 rounded-full blur-3xl -z-10" />
+                                        <div className="absolute bottom-0 left-0 w-48 h-48 bg-indigo-100/30 rounded-full blur-3xl -z-10" />
+                                        
+                                        <div className="w-16 h-16 bg-violet-50 rounded-2xl flex items-center justify-center mx-auto text-violet-750 border border-violet-100 shadow-sm">
+                                            <Briefcase size={32} />
+                                        </div>
+                                        
+                                        <div className="space-y-2">
+                                            <h3 className="font-extrabold text-slate-900 text-xl tracking-tight">Select a Case from the Sidebar</h3>
+                                            <p className="text-slate-500 text-xs max-w-md mx-auto leading-relaxed font-semibold">
+                                                Choose one of your listed active legal engagements or consultation bookings on the left to manage step-by-step roadmaps, join live video meetings, review progress updates, and approve milestones.
+                                            </p>
+                                        </div>
+
+                                        <div className="pt-6 border-t border-slate-100 grid grid-cols-1 md:grid-cols-2 gap-6 text-left max-w-lg mx-auto">
+                                            <div className="flex items-start gap-3">
+                                                <span className="flex items-center justify-center h-6 w-6 rounded-full bg-violet-50 text-violet-750 font-black text-[10px] shrink-0 border border-violet-100 shadow-sm">01</span>
+                                                <p className="text-[11px] text-slate-500 font-semibold leading-relaxed">
+                                                    Select a case or booking to load the lawyer's professional details and consultation slots.
+                                                </p>
+                                            </div>
+                                            <div className="flex items-start gap-3">
+                                                <span className="flex items-center justify-center h-6 w-6 rounded-full bg-violet-50 text-violet-750 font-black text-[10px] shrink-0 border border-violet-100 shadow-sm">02</span>
+                                                <p className="text-[11px] text-slate-500 font-semibold leading-relaxed">
+                                                    Follow visual timeline stages, join Jitsi video links, and release payouts once milestones are achieved.
+                                                </p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
                             )}
                         </div>
 

@@ -20,16 +20,103 @@ import {
     Briefcase,
     Coins,
     FileText,
-    ExternalLink
+    ExternalLink,
+    MessageSquare,
+    Eye,
+    Send,
+    Globe
 } from "lucide-react";
+
+const PANEL_SECTIONS = {
+    landing: [
+        { id: 'hero', name: 'Hero Section', keys: ['LANDING_HERO_TITLE', 'LANDING_HERO_SUBTITLE', 'LANDING_LOGO_URL', 'LANDING_HERO_IMAGE'] },
+        { id: 'how_it_works', name: 'How It Works', keys: ['LANDING_HOW_IT_WORKS_STEPS'] },
+        { id: 'features', name: 'Core Features', keys: ['LANDING_FEATURES'] },
+        { id: 'pricing', name: 'Pricing Plans', keys: ['LANDING_PRICING_PLANS'] },
+        { id: 'contact', name: 'Contact Info', keys: ['LANDING_CONTACT_INFO'] },
+        { id: 'faqs', name: 'FAQs List', keys: ['LANDING_FAQS'] }
+    ],
+    user: [
+        { id: 'doc_generator', name: 'AI Document Generator', keys: ['USER_DOC_GENERATOR_TITLE', 'USER_DOC_GENERATOR_DESC', 'USER_DOC_GENERATOR_LIMIT_FREE', 'USER_DOC_GENERATOR_ACTIVE'] },
+        { id: 'doc_review', name: 'Document Review', keys: ['USER_DOC_REVIEW_TITLE', 'USER_DOC_REVIEW_DESC', 'USER_DOC_REVIEW_MAX_FILE_SIZE_MB', 'USER_DOC_REVIEW_ACTIVE'] },
+        { id: 'legal_assistant', name: 'AI Legal Assistant', keys: ['USER_LEGAL_ASSISTANT_TITLE', 'USER_LEGAL_ASSISTANT_DESC', 'USER_LEGAL_ASSISTANT_DAILY_LIMIT', 'USER_LEGAL_ASSISTANT_ACTIVE'] },
+        { id: 'lawyer_booking', name: 'Lawyer Booking', keys: ['USER_LAWYER_BOOKING_TITLE', 'USER_LAWYER_BOOKING_DESC', 'USER_LAWYER_BOOKING_BASE_COMMISSION_PERCENT', 'USER_LAWYER_BOOKING_ACTIVE'] },
+        { id: 'pricing', name: 'Subscription Plans', keys: ['USER_PRICING_PLANS'] }
+    ],
+    lawyer: [
+        { id: 'dashboard', name: 'Lawyer Dashboard', keys: ['LAWYER_DASHBOARD_TITLE', 'LAWYER_DASHBOARD_WELCOME_MSG', 'LAWYER_DASHBOARD_ANNOUNCEMENT'] },
+        { id: 'cases_appointments', name: 'Cases & Appointments', keys: ['LAWYER_CASES_MAX_ACTIVE_PER_LAWYER', 'LAWYER_APPOINTMENT_MIN_NOTICE_HOURS', 'LAWYER_APPOINTMENT_ACTIVE'] },
+        { id: 'blog_articles', name: 'Blog & Articles', keys: ['LAWYER_BLOG_MAX_POSTS_PER_WEEK', 'LAWYER_BLOG_AUTO_APPROVE', 'LAWYER_BLOG_ACTIVE'] },
+        { id: 'payouts_commission', name: 'Payouts & Commission', keys: ['LAWYER_PAYMENT_MIN_PAYOUT_AMOUNT', 'LAWYER_PAYMENT_TDS_PERCENT', 'LAWYER_PAYMENT_ACTIVE'] },
+        { id: 'support', name: 'Lawyer Support', keys: ['LAWYER_SUPPORT_CONTACT_PHONE', 'LAWYER_SUPPORT_ACTIVE'] },
+        { id: 'pricing', name: 'Subscription Plans', keys: ['LAWYER_PRICING_PLANS'] }
+    ]
+};
 
 export default function AdminSettings() {
     const { tab } = useParams();
     const [configs, setConfigs] = useState<any[]>([]);
+    const [selectedPanel, setSelectedPanel] = useState<'landing' | 'user' | 'lawyer'>('landing');
+    const [selectedSection, setSelectedSection] = useState<string>('hero');
+    const [paymentSubTab, setPaymentSubTab] = useState<'user' | 'lawyer'>('user');
     const [users, setUsers] = useState<any[]>([]);
     const [pendingLawyers, setPendingLawyers] = useState<any[]>([]);
     const [cases, setCases] = useState<any[]>([]);
+    const [tickets, setTickets] = useState<any[]>([]);
+    const [documents, setDocuments] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
+
+    // User details modal state
+    const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
+    const [selectedUserDetails, setSelectedUserDetails] = useState<any | null>(null);
+    const [isUserModalOpen, setIsUserModalOpen] = useState(false);
+    const [loadingUserDetails, setLoadingUserDetails] = useState(false);
+    const [updatingSubscription, setUpdatingSubscription] = useState(false);
+
+    const openUserDetails = async (user: any) => {
+        try {
+            setSelectedUserId(user._id);
+            setIsUserModalOpen(true);
+            setLoadingUserDetails(true);
+            const data = await adminService.getUserDetails(user._id);
+            setSelectedUserDetails(data);
+        } catch (error) {
+            toast.error("Failed to load user details");
+            setIsUserModalOpen(false);
+        } finally {
+            setLoadingUserDetails(false);
+        }
+    };
+
+    const handleUpdateSubscription = async (subscription: string) => {
+        if (!selectedUserId) return;
+        try {
+            setUpdatingSubscription(true);
+            await adminService.updateUserSubscription(selectedUserId, subscription);
+            toast.success("User subscription updated successfully");
+            // Refresh details
+            const data = await adminService.getUserDetails(selectedUserId);
+            setSelectedUserDetails(data);
+            // Refresh main users list
+            fetchData();
+        } catch (error) {
+            toast.error("Failed to update subscription");
+        } finally {
+            setUpdatingSubscription(false);
+        }
+    };
+
+    // Tickets support state
+    const [selectedTicket, setSelectedTicket] = useState<any | null>(null);
+    const [replyText, setReplyText] = useState("");
+    const [ticketReplyStatus, setTicketReplyStatus] = useState("Closed");
+    const [ticketSearch, setTicketSearch] = useState("");
+    const [ticketPriorityFilter, setTicketPriorityFilter] = useState("All");
+    const [ticketStatusFilter, setTicketStatusFilter] = useState("All");
+
+    // Client documents state
+    const [selectedDoc, setSelectedDoc] = useState<any | null>(null);
+    const [docSearch, setDocSearch] = useState("");
 
     // JSON editing state
     const [editingJsonConfig, setEditingJsonConfig] = useState<{[key: string]: any}>({});
@@ -81,6 +168,13 @@ export default function AdminSettings() {
         });
     };
     
+    const handlePanelChange = (panel: 'landing' | 'user' | 'lawyer') => {
+        setSelectedPanel(panel);
+        if (panel === 'landing') setSelectedSection('hero');
+        else if (panel === 'user') setSelectedSection('doc_generator');
+        else if (panel === 'lawyer') setSelectedSection('dashboard');
+    };
+
     // Map URL tab to internal tab state
     const activeTab = tab || 'overview';
 
@@ -119,6 +213,16 @@ export default function AdminSettings() {
                 const casesData = await adminService.getAllCases();
                 setCases(casesData);
             }
+
+            if (activeTab === 'tickets' || activeTab === 'overview') {
+                const ticketData = await adminService.getAllTickets();
+                setTickets(ticketData);
+            }
+
+            if (activeTab === 'documents' || activeTab === 'overview') {
+                const docData = await adminService.getAllDocuments();
+                setDocuments(docData);
+            }
         } catch (error) {
             toast.error("Failed to load data");
         } finally {
@@ -155,43 +259,69 @@ export default function AdminSettings() {
         }
     };
 
-    const renderOverview = () => (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
-                <div className="flex items-center gap-4">
-                    <div className="p-3 bg-purple-100 rounded-xl text-purple-600">
-                        <Users className="h-6 w-6" />
+    const renderOverview = () => {
+        const activeTicketsCount = tickets.filter(t => t.status !== 'Closed').length;
+        
+        return (
+            <div className="grid grid-cols-1 md:grid-cols-5 gap-6">
+                <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex flex-col justify-between">
+                    <div className="flex items-center gap-4">
+                        <div className="p-3 bg-purple-100 rounded-xl text-purple-600">
+                            <Users className="h-6 w-6" />
+                        </div>
+                        <div>
+                            <p className="text-xs text-slate-500 font-semibold uppercase tracking-wider">Total Users</p>
+                            <h3 className="text-2xl font-bold text-slate-900 mt-1">{users.length}</h3>
+                        </div>
                     </div>
-                    <div>
-                        <p className="text-sm text-slate-500 font-medium">Total Users</p>
-                        <h3 className="text-2xl font-bold text-slate-900">{users.length}</h3>
+                </div>
+                <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex flex-col justify-between">
+                    <div className="flex items-center gap-4">
+                        <div className="p-3 bg-blue-100 rounded-xl text-blue-600">
+                            <Gavel className="h-6 w-6" />
+                        </div>
+                        <div>
+                            <p className="text-xs text-slate-500 font-semibold uppercase tracking-wider">Pending Lawyers</p>
+                            <h3 className="text-2xl font-bold text-slate-900 mt-1">{pendingLawyers.length}</h3>
+                        </div>
+                    </div>
+                </div>
+                <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex flex-col justify-between">
+                    <div className="flex items-center gap-4">
+                        <div className="p-3 bg-rose-100 rounded-xl text-rose-600">
+                            <MessageSquare className="h-6 w-6" />
+                        </div>
+                        <div>
+                            <p className="text-xs text-slate-500 font-semibold uppercase tracking-wider">Active Tickets</p>
+                            <h3 className="text-2xl font-bold text-rose-600 mt-1">{activeTicketsCount}</h3>
+                        </div>
+                    </div>
+                </div>
+                <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex flex-col justify-between">
+                    <div className="flex items-center gap-4">
+                        <div className="p-3 bg-indigo-100 rounded-xl text-indigo-600">
+                            <FileText className="h-6 w-6" />
+                        </div>
+                        <div>
+                            <p className="text-xs text-slate-500 font-semibold uppercase tracking-wider">Client Docs</p>
+                            <h3 className="text-2xl font-bold text-slate-900 mt-1">{documents.length}</h3>
+                        </div>
+                    </div>
+                </div>
+                <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex flex-col justify-between">
+                    <div className="flex items-center gap-4">
+                        <div className="p-3 bg-emerald-100 rounded-xl text-emerald-600">
+                            <Activity className="h-6 w-6" />
+                        </div>
+                        <div>
+                            <p className="text-xs text-slate-500 font-semibold uppercase tracking-wider">System Status</p>
+                            <h3 className="text-2xl font-bold text-emerald-600 mt-1">Healthy</h3>
+                        </div>
                     </div>
                 </div>
             </div>
-            <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
-                <div className="flex items-center gap-4">
-                    <div className="p-3 bg-blue-100 rounded-xl text-blue-600">
-                        <Gavel className="h-6 w-6" />
-                    </div>
-                    <div>
-                        <p className="text-sm text-slate-500 font-medium">Pending Approvals</p>
-                        <h3 className="text-2xl font-bold text-slate-900">{pendingLawyers.length}</h3>
-                    </div>
-                </div>
-            </div>
-            <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
-                <div className="flex items-center gap-4">
-                    <div className="p-3 bg-emerald-100 rounded-xl text-emerald-600">
-                        <Activity className="h-6 w-6" />
-                    </div>
-                    <div>
-                        <p className="text-sm text-slate-500 font-medium">System Status</p>
-                        <h3 className="text-2xl font-bold text-emerald-600">Healthy</h3>
-                    </div>
-                </div>
-            </div>
-        </div>
-    );
+        );
+    };
 
     const renderLawyerApproval = () => (
         <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm">
@@ -264,7 +394,12 @@ export default function AdminSettings() {
                     {users.map((user) => (
                         <tr key={user._id} className="hover:bg-slate-50 transition-colors">
                             <td className="px-6 py-4">
-                                <div className="font-medium text-slate-900">{user.fullName}</div>
+                                <button 
+                                    onClick={() => openUserDetails(user)}
+                                    className="font-semibold text-slate-900 hover:text-purple-600 hover:underline text-left block focus:outline-none"
+                                >
+                                    {user.fullName}
+                                </button>
                                 <div className="text-xs text-slate-400">{user.email}</div>
                             </td>
                             <td className="px-6 py-4">
@@ -498,12 +633,16 @@ export default function AdminSettings() {
 
     const renderPricingEditor = (key: string) => {
         const plans = editingJsonConfig[key] || [];
+        const defaultPlan = key === 'USER_PRICING_PLANS' 
+            ? { name: "New User Plan", priceMonthly: 1999, priceYearly: 19990, desc: "Plan description", features: ["Feature 1"], gradient: "from-purple-500 to-indigo-600", popular: false, iconName: "Zap", limits: { documents: 30, reviews: 10, research: 20, bookings: 5 } }
+            : { name: "New Lawyer Plan", priceMonthly: 1999, priceYearly: 19990, desc: "Plan description", features: ["Feature 1"], gradient: "from-purple-500 to-indigo-600", popular: false, iconName: "Zap", limits: { activeCases: 15, blogsPerWeek: 5, commissionPercent: 10 } };
+            
         return (
             <div className="mt-4 space-y-4 border-t border-slate-100 pt-4">
                 <div className="flex justify-between items-center">
                     <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Pricing Plans</span>
                     <button 
-                        onClick={() => addArrayItem(key, { name: "New Plan", priceMonthly: 19, priceYearly: 190, desc: "Plan description", features: ["Feature 1"], gradient: "from-purple-500 to-indigo-600", popular: false, iconName: "Zap" })}
+                        onClick={() => addArrayItem(key, defaultPlan)}
                         className="flex items-center gap-1 px-3 py-1.5 bg-purple-50 text-purple-600 rounded-lg text-xs font-semibold hover:bg-purple-100 transition-colors"
                     >
                         <Plus className="h-3.5 w-3.5" />
@@ -547,21 +686,33 @@ export default function AdminSettings() {
                                             />
                                         </div>
                                         <div className="col-span-2">
-                                            <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Monthly Price ($)</label>
+                                            <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">
+                                                Monthly Price {key.startsWith('USER') ? '(₹)' : '($)'}
+                                            </label>
                                             <input 
-                                                type="number" 
+                                                type="text" 
                                                 value={plan.priceMonthly !== undefined ? plan.priceMonthly : ''} 
-                                                onChange={(e) => updateArrayField(key, index, 'priceMonthly', Number(e.target.value))}
-                                                className="w-full px-2.5 py-1.5 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none bg-white"
+                                                onChange={(e) => {
+                                                    const val = e.target.value;
+                                                    const num = Number(val);
+                                                    updateArrayField(key, index, 'priceMonthly', isNaN(num) || val === '' ? val : num);
+                                                }}
+                                                className="w-full px-2.5 py-1.5 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none bg-white font-medium"
                                             />
                                         </div>
                                         <div className="col-span-2">
-                                            <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Yearly Price ($)</label>
+                                            <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">
+                                                Yearly Price {key.startsWith('USER') ? '(₹)' : '($)'}
+                                            </label>
                                             <input 
-                                                type="number" 
+                                                type="text" 
                                                 value={plan.priceYearly !== undefined ? plan.priceYearly : ''} 
-                                                onChange={(e) => updateArrayField(key, index, 'priceYearly', Number(e.target.value))}
-                                                className="w-full px-2.5 py-1.5 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none bg-white"
+                                                onChange={(e) => {
+                                                    const val = e.target.value;
+                                                    const num = Number(val);
+                                                    updateArrayField(key, index, 'priceYearly', isNaN(num) || val === '' ? val : num);
+                                                }}
+                                                className="w-full px-2.5 py-1.5 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none bg-white font-medium"
                                             />
                                         </div>
                                         <div className="col-span-2">
@@ -599,8 +750,50 @@ export default function AdminSettings() {
                                                 type="text" 
                                                 value={plan.gradient || ''} 
                                                 onChange={(e) => updateArrayField(key, index, 'gradient', e.target.value)}
+                                                className="w-full px-2.5 py-1.5 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none bg-white font-medium"
+                                            />
+                                        </div>
+                                        <div className="col-span-6">
+                                            <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">CTA Button Text</label>
+                                            <input 
+                                                type="text" 
+                                                value={plan.cta || ''} 
+                                                onChange={(e) => updateArrayField(key, index, 'cta', e.target.value)}
                                                 className="w-full px-2.5 py-1.5 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none bg-white"
                                             />
+                                        </div>
+                                        <div className="col-span-2 flex items-center pt-5">
+                                            <label className="flex items-center gap-2 cursor-pointer select-none text-xs font-semibold text-slate-600">
+                                                <input 
+                                                    type="checkbox" 
+                                                    checked={plan.disabled || false} 
+                                                    onChange={(e) => updateArrayField(key, index, 'disabled', e.target.checked)}
+                                                    className="rounded border-slate-300 text-purple-600 focus:ring-purple-500 h-4 w-4"
+                                                />
+                                                Disabled
+                                            </label>
+                                        </div>
+                                        <div className="col-span-2 flex items-center pt-5">
+                                            <label className="flex items-center gap-2 cursor-pointer select-none text-xs font-semibold text-slate-600">
+                                                <input 
+                                                    type="checkbox" 
+                                                    checked={plan.current || false} 
+                                                    onChange={(e) => updateArrayField(key, index, 'current', e.target.checked)}
+                                                    className="rounded border-slate-300 text-purple-600 focus:ring-purple-500 h-4 w-4"
+                                                />
+                                                Current Active
+                                            </label>
+                                        </div>
+                                        <div className="col-span-2 flex items-center pt-5">
+                                            <label className="flex items-center gap-2 cursor-pointer select-none text-xs font-semibold text-slate-600">
+                                                <input 
+                                                    type="checkbox" 
+                                                    checked={plan.bestValue || false} 
+                                                    onChange={(e) => updateArrayField(key, index, 'bestValue', e.target.checked)}
+                                                    className="rounded border-slate-300 text-purple-600 focus:ring-purple-500 h-4 w-4"
+                                                />
+                                                Best Value
+                                            </label>
                                         </div>
                                         <div className="col-span-12">
                                             <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Features (one per line)</label>
@@ -613,6 +806,107 @@ export default function AdminSettings() {
                                                 rows={4}
                                                 className="w-full px-2.5 py-1.5 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none bg-white"
                                             />
+                                        </div>
+                                        {/* Limits Configuration */}
+                                        <div className="col-span-12 border-t border-slate-100 pt-3 mt-1">
+                                            <span className="block text-[10px] font-bold text-purple-600 uppercase tracking-wider mb-2">Subscription Limits</span>
+                                            <div className="grid grid-cols-1 md:grid-cols-4 gap-3 bg-slate-50 p-3 rounded-lg border border-slate-100">
+                                                {(key === 'USER_PRICING_PLANS' || key === 'LANDING_PRICING_PLANS') && (
+                                                    <>
+                                                        <div>
+                                                            <label className="block text-[9px] font-bold text-slate-500 mb-1">Docs / Month</label>
+                                                            <input 
+                                                                type="number"
+                                                                value={plan.limits?.documents !== undefined ? plan.limits.documents : ''}
+                                                                onChange={(e) => {
+                                                                    const limits = { ...(plan.limits || {}), documents: Number(e.target.value) };
+                                                                    updateArrayField(key, index, 'limits', limits);
+                                                                }}
+                                                                className="w-full px-2.5 py-1.5 border border-slate-200 rounded-lg text-xs focus:ring-1 focus:ring-purple-500 focus:border-transparent outline-none bg-white font-medium"
+                                                            />
+                                                        </div>
+                                                        <div>
+                                                            <label className="block text-[9px] font-bold text-slate-500 mb-1">Reviews / Month</label>
+                                                            <input 
+                                                                type="number"
+                                                                value={plan.limits?.reviews !== undefined ? plan.limits.reviews : ''}
+                                                                onChange={(e) => {
+                                                                    const limits = { ...(plan.limits || {}), reviews: Number(e.target.value) };
+                                                                    updateArrayField(key, index, 'limits', limits);
+                                                                }}
+                                                                className="w-full px-2.5 py-1.5 border border-slate-200 rounded-lg text-xs focus:ring-1 focus:ring-purple-500 focus:border-transparent outline-none bg-white font-medium"
+                                                            />
+                                                        </div>
+                                                        <div>
+                                                            <label className="block text-[9px] font-bold text-slate-500 mb-1">Research Queries / Day</label>
+                                                            <input 
+                                                                type="number"
+                                                                value={plan.limits?.research !== undefined ? plan.limits.research : ''}
+                                                                onChange={(e) => {
+                                                                    const limits = { ...(plan.limits || {}), research: Number(e.target.value) };
+                                                                    updateArrayField(key, index, 'limits', limits);
+                                                                }}
+                                                                className="w-full px-2.5 py-1.5 border border-slate-200 rounded-lg text-xs focus:ring-1 focus:ring-purple-500 focus:border-transparent outline-none bg-white font-medium"
+                                                            />
+                                                        </div>
+                                                        <div>
+                                                            <label className="block text-[9px] font-bold text-slate-500 mb-1">Bookings / Month</label>
+                                                            <input 
+                                                                type="number"
+                                                                value={plan.limits?.bookings !== undefined ? plan.limits.bookings : ''}
+                                                                onChange={(e) => {
+                                                                    const limits = { ...(plan.limits || {}), bookings: Number(e.target.value) };
+                                                                    updateArrayField(key, index, 'limits', limits);
+                                                                }}
+                                                                className="w-full px-2.5 py-1.5 border border-slate-200 rounded-lg text-xs focus:ring-1 focus:ring-purple-500 focus:border-transparent outline-none bg-white font-medium"
+                                                            />
+                                                        </div>
+                                                    </>
+                                                )}
+                                                {key === 'LAWYER_PRICING_PLANS' && (
+                                                    <>
+                                                        <div>
+                                                            <label className="block text-[9px] font-bold text-slate-500 mb-1">Max Active Cases</label>
+                                                            <input 
+                                                                type="number"
+                                                                value={plan.limits?.activeCases !== undefined ? plan.limits.activeCases : ''}
+                                                                onChange={(e) => {
+                                                                    const limits = { ...(plan.limits || {}), activeCases: Number(e.target.value) };
+                                                                    updateArrayField(key, index, 'limits', limits);
+                                                                }}
+                                                                className="w-full px-2.5 py-1.5 border border-slate-200 rounded-lg text-xs focus:ring-1 focus:ring-purple-500 focus:border-transparent outline-none bg-white font-medium"
+                                                            />
+                                                        </div>
+                                                        <div>
+                                                            <label className="block text-[9px] font-bold text-slate-500 mb-1">Blogs / Week</label>
+                                                            <input 
+                                                                type="number"
+                                                                value={plan.limits?.blogsPerWeek !== undefined ? plan.limits.blogsPerWeek : ''}
+                                                                onChange={(e) => {
+                                                                    const limits = { ...(plan.limits || {}), blogsPerWeek: Number(e.target.value) };
+                                                                    updateArrayField(key, index, 'limits', limits);
+                                                                }}
+                                                                className="w-full px-2.5 py-1.5 border border-slate-200 rounded-lg text-xs focus:ring-1 focus:ring-purple-500 focus:border-transparent outline-none bg-white font-medium"
+                                                            />
+                                                        </div>
+                                                        <div>
+                                                            <label className="block text-[9px] font-bold text-slate-500 mb-1">Commission Percent (%)</label>
+                                                            <input 
+                                                                type="number"
+                                                                value={plan.limits?.commissionPercent !== undefined ? plan.limits.commissionPercent : ''}
+                                                                onChange={(e) => {
+                                                                    const limits = { ...(plan.limits || {}), commissionPercent: Number(e.target.value) };
+                                                                    updateArrayField(key, index, 'limits', limits);
+                                                                }}
+                                                                className="w-full px-2.5 py-1.5 border border-slate-200 rounded-lg text-xs focus:ring-1 focus:ring-purple-500 focus:border-transparent outline-none bg-white font-medium"
+                                                            />
+                                                        </div>
+                                                        <div className="flex items-center text-slate-400 text-[10px] pt-4 italic font-medium">
+                                                            Platform commission rate
+                                                        </div>
+                                                    </>
+                                                )}
+                                            </div>
                                         </div>
                                     </div>
                                     
@@ -802,100 +1096,308 @@ export default function AdminSettings() {
                 )}
             </div>
         );
-    };
+    };    const renderContentSettings = () => {
+        let filteredConfigs = [];
+        if (activeTab === 'content') {
+            const currentSectionKeys = PANEL_SECTIONS[selectedPanel].find(s => s.id === selectedSection)?.keys || [];
+            filteredConfigs = configs.filter(c => currentSectionKeys.includes(c.key));
+        } else if (activeTab === 'payments') {
+            if (paymentSubTab === 'user') {
+                filteredConfigs = configs.filter(c => c.key === 'USER_PRICING_PLANS' || c.category === 'payments');
+            } else {
+                filteredConfigs = configs.filter(c => c.key === 'LAWYER_PRICING_PLANS');
+            }
+        } else {
+            filteredConfigs = configs.filter(c => c.category === 'system');
+        }
 
-    const renderContentSettings = () => {
-        const filteredConfigs = configs.filter(c => 
-            activeTab === 'content' ? (c.category === 'landing' || c.category === 'user_panel') :
-            activeTab === 'payments' ? c.category === 'payments' :
-            c.category === 'system'
-        );
+        const sectionsList = activeTab === 'content' ? PANEL_SECTIONS[selectedPanel] : [];
+
+        if (activeTab !== 'content') {
+            return (
+                <div className="space-y-6">
+                    {activeTab === 'payments' && (
+                        <div className="flex flex-col sm:flex-row gap-3 p-1.5 bg-slate-100 rounded-xl border border-slate-200 w-fit">
+                            <button
+                                onClick={() => setPaymentSubTab('user')}
+                                className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-xs font-bold transition-all duration-205 ${
+                                    paymentSubTab === 'user' 
+                                        ? 'bg-white text-purple-600 shadow-sm' 
+                                        : 'text-slate-650 hover:text-slate-900 hover:bg-slate-50/50'
+                                }`}
+                            >
+                                <Users className="h-4 w-4" />
+                                User Subscription & Fees
+                            </button>
+                            <button
+                                onClick={() => setPaymentSubTab('lawyer')}
+                                className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-xs font-bold transition-all duration-205 ${
+                                    paymentSubTab === 'lawyer' 
+                                        ? 'bg-white text-purple-600 shadow-sm' 
+                                        : 'text-slate-650 hover:text-slate-900 hover:bg-slate-50/50'
+                                }`}
+                            >
+                                <Gavel className="h-4 w-4" />
+                                Lawyer Subscription Management
+                            </button>
+                        </div>
+                    )}
+                    <div className="grid gap-6">
+                        {filteredConfigs.map((config) => {
+                            const isJson = typeof config.value === 'object' && config.value !== null;
+                            const isLongText = config.key.endsWith('_DESC') || config.key.endsWith('_SUBTITLE') || config.key.endsWith('_ANNOUNCEMENT') || config.key.endsWith('_WELCOME_MSG');
+
+                            return (
+                                <div key={config._id} className={`bg-white p-6 rounded-xl border border-slate-200 shadow-sm flex flex-col gap-4 ${isJson ? 'items-stretch' : 'md:flex-row md:items-center justify-between'}`}>
+                                    <div className="space-y-1 flex-1">
+                                        <h3 className="font-bold text-slate-900 flex items-center gap-2">
+                                            {config.key.replace(/_/g, ' ')}
+                                            <Info className="h-3.5 w-3.5 text-slate-400" />
+                                        </h3>
+                                        <p className="text-sm text-slate-500">{config.description}</p>
+                                    </div>
+
+                                    {isJson ? (
+                                        <div className="w-full flex flex-col">
+                                            {(config.key === 'LANDING_PRICING_PLANS' || config.key === 'USER_PRICING_PLANS' || config.key === 'LAWYER_PRICING_PLANS') && renderPricingEditor(config.key)}
+                                            
+                                            <div className="mt-4 flex justify-end border-t border-slate-100 pt-4">
+                                                <button 
+                                                    onClick={() => handleUpdate(config.key, editingJsonConfig[config.key])}
+                                                    className="bg-purple-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-purple-700 transition-colors flex items-center gap-2 shadow-sm"
+                                                >
+                                                    <Save className="h-4 w-4" />
+                                                    Save {config.key.replace(/_/g, ' ').toLowerCase()} Changes
+                                                </button>
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <div className="flex gap-4 items-center">
+                                            {typeof config.value === 'boolean' ? (
+                                                <button 
+                                                    onClick={() => handleUpdate(config.key, !config.value)}
+                                                    className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all ${
+                                                        config.value ? 'bg-red-50 text-red-600 border border-red-200' : 'bg-emerald-50 text-emerald-600 border border-emerald-200'
+                                                    }`}
+                                                >
+                                                    {config.value ? 'Turn OFF' : 'Turn ON'}
+                                                </button>
+                                            ) : (
+                                                <div className="flex gap-2 items-start w-full md:w-auto">
+                                                    {isLongText ? (
+                                                        <textarea
+                                                            defaultValue={config.value}
+                                                            id={`input-${config.key}`}
+                                                            rows={3}
+                                                            className="px-3 py-2 border border-slate-200 rounded-lg text-sm w-64 md:w-96 focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none font-medium"
+                                                        />
+                                                    ) : (
+                                                        <input 
+                                                            type={typeof config.value === 'number' ? 'number' : 'text'}
+                                                            defaultValue={config.value}
+                                                            id={`input-${config.key}`}
+                                                            className="px-3 py-2 border border-slate-200 rounded-lg text-sm w-64 md:w-80 focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none font-medium"
+                                                        />
+                                                    )}
+                                                    <button 
+                                                        onClick={() => {
+                                                            const val = (document.getElementById(`input-${config.key}`) as HTMLInputElement | HTMLTextAreaElement).value;
+                                                            handleUpdate(config.key, val);
+                                                        }}
+                                                        className="bg-slate-900 text-white p-2.5 rounded-lg hover:bg-slate-800 transition-colors shrink-0"
+                                                    >
+                                                        <Save className="h-4 w-4" />
+                                                    </button>
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
+                                </div>
+                            );
+                        })}
+                    </div>
+                </div>
+            );
+        }
 
         return (
-            <div className="grid gap-6">
-                {filteredConfigs.map((config) => {
-                    const isJson = typeof config.value === 'object' && config.value !== null;
-                    const isImageKey = config.key === 'LANDING_LOGO_URL' || config.key === 'LANDING_HERO_IMAGE';
-                    const isLongText = config.key === 'LANDING_HERO_SUBTITLE';
-
-                    return (
-                        <div key={config._id} className={`bg-white p-6 rounded-xl border border-slate-200 shadow-sm flex flex-col gap-4 ${isJson ? 'items-stretch' : 'md:flex-row md:items-center justify-between'}`}>
-                            <div className="space-y-1 flex-1">
-                                <h3 className="font-bold text-slate-900 flex items-center gap-2">
-                                    {config.key.replace(/_/g, ' ')}
-                                    <Info className="h-3.5 w-3.5 text-slate-400" />
-                                </h3>
-                                <p className="text-sm text-slate-500">{config.description}</p>
-                            </div>
-
-                            {isJson ? (
-                                <div className="w-full flex flex-col">
-                                    {config.key === 'LANDING_HOW_IT_WORKS_STEPS' && renderStepsEditor(config.key)}
-                                    {config.key === 'LANDING_FEATURES' && renderFeaturesEditor(config.key)}
-                                    {config.key === 'LANDING_PRICING_PLANS' && renderPricingEditor(config.key)}
-                                    {config.key === 'LANDING_CONTACT_INFO' && renderContactEditor(config.key)}
-                                    {config.key === 'LANDING_FAQS' && renderFaqsEditor(config.key)}
-                                    
-                                    <div className="mt-4 flex justify-end border-t border-slate-100 pt-4">
-                                        <button 
-                                            onClick={() => handleUpdate(config.key, editingJsonConfig[config.key])}
-                                            className="bg-purple-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-purple-700 transition-colors flex items-center gap-2 shadow-sm"
-                                        >
-                                            <Save className="h-4 w-4" />
-                                            Save {config.key.replace(/_/g, ' ').toLowerCase()} Changes
-                                        </button>
-                                    </div>
-                                </div>
-                            ) : (
-                                <div className="flex gap-4 items-center">
-                                    {isImageKey && config.value && (
-                                        <div className="h-10 w-10 rounded border border-slate-200 bg-slate-50 overflow-hidden flex items-center justify-center shrink-0">
-                                            <img src={config.value} alt="Preview" className="max-h-full max-w-full object-contain" onError={(e) => { (e.target as HTMLElement).style.display = 'none'; }} />
-                                        </div>
-                                    )}
-
-                                    {typeof config.value === 'boolean' ? (
-                                        <button 
-                                            onClick={() => handleUpdate(config.key, !config.value)}
-                                            className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-                                                config.value ? 'bg-red-50 text-red-600 border border-red-200' : 'bg-emerald-50 text-emerald-600 border border-emerald-200'
-                                            }`}
-                                        >
-                                            {config.value ? 'Turn OFF' : 'Turn ON'}
-                                        </button>
-                                    ) : (
-                                        <div className="flex gap-2 items-start w-full md:w-auto">
-                                            {isLongText ? (
-                                                <textarea
-                                                    defaultValue={config.value}
-                                                    id={`input-${config.key}`}
-                                                    rows={3}
-                                                    className="px-3 py-2 border border-slate-200 rounded-lg text-sm w-64 md:w-96 focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none"
-                                                />
-                                            ) : (
-                                                <input 
-                                                    type="text" 
-                                                    defaultValue={config.value}
-                                                    id={`input-${config.key}`}
-                                                    className="px-3 py-2 border border-slate-200 rounded-lg text-sm w-64 md:w-80 focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none"
-                                                />
-                                            )}
-                                            <button 
-                                                onClick={() => {
-                                                    const val = (document.getElementById(`input-${config.key}`) as HTMLInputElement | HTMLTextAreaElement).value;
-                                                    handleUpdate(config.key, val);
-                                                }}
-                                                className="bg-slate-900 text-white p-2.5 rounded-lg hover:bg-slate-800 transition-colors shrink-0"
-                                            >
-                                                <Save className="h-4 w-4" />
-                                            </button>
-                                        </div>
-                                    )}
-                                </div>
-                            )}
+            <div className="space-y-6">
+                {/* 3 Option Selection Cards */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                    <div 
+                        onClick={() => handlePanelChange('landing')}
+                        className={`flex items-center gap-4 p-5 rounded-2xl border cursor-pointer transition-all duration-300 ${
+                            selectedPanel === 'landing' 
+                            ? 'bg-gradient-to-br from-purple-600 to-indigo-600 text-white border-transparent shadow-lg shadow-purple-500/20 scale-[1.02]' 
+                            : 'bg-white text-slate-700 border-slate-200 hover:border-purple-300 hover:shadow-md'
+                        }`}
+                    >
+                        <div className={`p-3 rounded-xl ${selectedPanel === 'landing' ? 'bg-white/20 text-white' : 'bg-purple-50 text-purple-600'}`}>
+                            <Globe className="h-6 w-6" />
                         </div>
-                    );
-                })}
+                        <div>
+                            <h3 className={`font-bold text-base ${selectedPanel === 'landing' ? 'text-white' : 'text-slate-900'}`}>Landing Page</h3>
+                            <p className={`text-xs mt-1 leading-snug ${selectedPanel === 'landing' ? 'text-purple-100' : 'text-slate-500'}`}>
+                                Edit landing page content, steps, features, and FAQs.
+                            </p>
+                        </div>
+                    </div>
+
+                    <div 
+                        onClick={() => handlePanelChange('user')}
+                        className={`flex items-center gap-4 p-5 rounded-2xl border cursor-pointer transition-all duration-300 ${
+                            selectedPanel === 'user' 
+                            ? 'bg-gradient-to-br from-purple-600 to-indigo-600 text-white border-transparent shadow-lg shadow-purple-500/20 scale-[1.02]' 
+                            : 'bg-white text-slate-700 border-slate-200 hover:border-purple-300 hover:shadow-md'
+                        }`}
+                    >
+                        <div className={`p-3 rounded-xl ${selectedPanel === 'user' ? 'bg-white/20 text-white' : 'bg-purple-50 text-purple-600'}`}>
+                            <Users className="h-6 w-6" />
+                        </div>
+                        <div>
+                            <h3 className={`font-bold text-base ${selectedPanel === 'user' ? 'text-white' : 'text-slate-900'}`}>User Panel</h3>
+                            <p className={`text-xs mt-1 leading-snug ${selectedPanel === 'user' ? 'text-purple-100' : 'text-slate-500'}`}>
+                                Configure limits, descriptions, and toggles for clients.
+                            </p>
+                        </div>
+                    </div>
+
+                    <div 
+                        onClick={() => handlePanelChange('lawyer')}
+                        className={`flex items-center gap-4 p-5 rounded-2xl border cursor-pointer transition-all duration-300 ${
+                            selectedPanel === 'lawyer' 
+                            ? 'bg-gradient-to-br from-purple-600 to-indigo-600 text-white border-transparent shadow-lg shadow-purple-500/20 scale-[1.02]' 
+                            : 'bg-white text-slate-700 border-slate-200 hover:border-purple-300 hover:shadow-md'
+                        }`}
+                    >
+                        <div className={`p-3 rounded-xl ${selectedPanel === 'lawyer' ? 'bg-white/20 text-white' : 'bg-purple-50 text-purple-600'}`}>
+                            <Gavel className="h-6 w-6" />
+                        </div>
+                        <div>
+                            <h3 className={`font-bold text-base ${selectedPanel === 'lawyer' ? 'text-white' : 'text-slate-900'}`}>Lawyer Panel</h3>
+                            <p className={`text-xs mt-1 leading-snug ${selectedPanel === 'lawyer' ? 'text-purple-100' : 'text-slate-500'}`}>
+                                Manage welcome banners, blog approvals, and payouts.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div className="grid grid-cols-12 gap-6 items-start">
+                    {/* Left Navigation Sidebar */}
+                    <div className="col-span-12 md:col-span-3 space-y-1 bg-white p-3 rounded-xl border border-slate-200 shadow-sm shrink-0">
+                        <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest px-3 mb-2">Sections</span>
+                        {sectionsList.map((section) => (
+                            <button
+                                key={section.id}
+                                onClick={() => setSelectedSection(section.id)}
+                                className={`w-full text-left px-3.5 py-2.5 rounded-lg text-xs font-semibold transition-all flex items-center justify-between ${
+                                    selectedSection === section.id 
+                                    ? 'bg-purple-50 text-purple-700 shadow-sm border-l-2 border-purple-500' 
+                                    : 'text-slate-650 hover:bg-slate-50 hover:text-slate-900'
+                                }`}
+                            >
+                                {section.name}
+                                {selectedSection === section.id && (
+                                    <div className="w-1.5 h-1.5 rounded-full bg-purple-600 animate-pulse" />
+                                )}
+                            </button>
+                        ))}
+                    </div>
+
+                    {/* Right Editor Area */}
+                    <div className="col-span-12 md:col-span-9 space-y-6">
+                        {filteredConfigs.length === 0 ? (
+                            <div className="bg-white p-12 rounded-xl border border-slate-200 shadow-sm text-center text-slate-400">
+                                <Info className="h-10 w-10 text-slate-300 mx-auto mb-3" />
+                                <p className="text-sm font-semibold">No configurations found in this section.</p>
+                            </div>
+                        ) : (
+                            filteredConfigs.map((config) => {
+                                const isJson = typeof config.value === 'object' && config.value !== null;
+                                const isImageKey = config.key.includes('IMAGE') || config.key.includes('LOGO_URL');
+                                const isLongText = config.key.endsWith('_DESC') || config.key.endsWith('_SUBTITLE') || config.key.endsWith('_ANNOUNCEMENT') || config.key.endsWith('_WELCOME_MSG');
+
+                                return (
+                                    <div key={config._id} className={`bg-white p-6 rounded-xl border border-slate-200 shadow-sm flex flex-col gap-4 ${isJson ? 'items-stretch' : 'md:flex-row md:items-center justify-between'}`}>
+                                        <div className="space-y-1 flex-1">
+                                            <h3 className="font-bold text-slate-900 flex items-center gap-2">
+                                                {config.key.replace(/_/g, ' ')}
+                                                <Info className="h-3.5 w-3.5 text-slate-400" />
+                                            </h3>
+                                            <p className="text-sm text-slate-555">{config.description}</p>
+                                        </div>
+
+                                        {isJson ? (
+                                            <div className="w-full flex flex-col">
+                                                {config.key === 'LANDING_HOW_IT_WORKS_STEPS' && renderStepsEditor(config.key)}
+                                                {config.key === 'LANDING_FEATURES' && renderFeaturesEditor(config.key)}
+                                                {(config.key === 'LANDING_PRICING_PLANS' || config.key === 'USER_PRICING_PLANS' || config.key === 'LAWYER_PRICING_PLANS') && renderPricingEditor(config.key)}
+                                                {config.key === 'LANDING_CONTACT_INFO' && renderContactEditor(config.key)}
+                                                {config.key === 'LANDING_FAQS' && renderFaqsEditor(config.key)}
+                                                
+                                                <div className="mt-4 flex justify-end border-t border-slate-100 pt-4">
+                                                    <button 
+                                                        onClick={() => handleUpdate(config.key, editingJsonConfig[config.key])}
+                                                        className="bg-purple-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-purple-700 transition-colors flex items-center gap-2 shadow-sm"
+                                                    >
+                                                        <Save className="h-4 w-4" />
+                                                        Save {config.key.replace(/_/g, ' ').toLowerCase()} Changes
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        ) : (
+                                            <div className="flex gap-4 items-center">
+                                                {isImageKey && config.value && (
+                                                    <div className="h-10 w-10 rounded border border-slate-200 bg-slate-50 overflow-hidden flex items-center justify-center shrink-0">
+                                                        <img src={config.value} alt="Preview" className="max-h-full max-w-full object-contain" onError={(e) => { (e.target as HTMLElement).style.display = 'none'; }} />
+                                                    </div>
+                                                )}
+
+                                                {typeof config.value === 'boolean' ? (
+                                                    <button 
+                                                        onClick={() => handleUpdate(config.key, !config.value)}
+                                                        className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all ${
+                                                            config.value ? 'bg-red-55 text-red-600 border border-red-200' : 'bg-emerald-50 text-emerald-605 border border-emerald-200'
+                                                        }`}
+                                                    >
+                                                        {config.value ? 'Turn OFF' : 'Turn ON'}
+                                                    </button>
+                                                ) : (
+                                                    <div className="flex gap-2 items-start w-full md:w-auto">
+                                                        {isLongText ? (
+                                                            <textarea
+                                                                defaultValue={config.value}
+                                                                id={`input-${config.key}`}
+                                                                rows={3}
+                                                                className="px-3 py-2 border border-slate-200 rounded-lg text-sm w-64 md:w-96 focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none font-medium"
+                                                            />
+                                                        ) : (
+                                                            <input 
+                                                                type={typeof config.value === 'number' ? 'number' : 'text'}
+                                                                defaultValue={config.value}
+                                                                id={`input-${config.key}`}
+                                                                className="px-3 py-2 border border-slate-200 rounded-lg text-sm w-64 md:w-80 focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none font-medium"
+                                                            />
+                                                        )}
+                                                        <button 
+                                                            onClick={() => {
+                                                                const val = (document.getElementById(`input-${config.key}`) as HTMLInputElement | HTMLTextAreaElement).value;
+                                                                handleUpdate(config.key, val);
+                                                            }}
+                                                            className="bg-slate-900 text-white p-2.5 rounded-lg hover:bg-slate-800 transition-colors shrink-0"
+                                                        >
+                                                            <Save className="h-4 w-4" />
+                                                        </button>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        )}
+                                    </div>
+                                );
+                            })
+                        )}
+                    </div>
+                </div>
             </div>
         );
     };
@@ -1165,6 +1667,457 @@ export default function AdminSettings() {
         );
     };
 
+    const handleReplyTicket = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!selectedTicket) return;
+        try {
+            await adminService.replyToTicket(selectedTicket._id, replyText, ticketReplyStatus);
+            toast.success("Replied to ticket successfully!");
+            setSelectedTicket(null);
+            setReplyText("");
+            fetchData();
+        } catch (error) {
+            toast.error("Failed to reply to ticket");
+        }
+    };
+
+    const renderTickets = () => {
+        // Filter tickets
+        const filteredTickets = tickets.filter(t => {
+            const matchesSearch = 
+                t.ticketId.toLowerCase().includes(ticketSearch.toLowerCase()) ||
+                t.subject.toLowerCase().includes(ticketSearch.toLowerCase()) ||
+                t.description.toLowerCase().includes(ticketSearch.toLowerCase());
+            
+            const matchesPriority = ticketPriorityFilter === 'All' || t.priority === ticketPriorityFilter;
+            const matchesStatus = ticketStatusFilter === 'All' || t.status === ticketStatusFilter;
+            
+            return matchesSearch && matchesPriority && matchesStatus;
+        });
+
+        const getPriorityColor = (p: string) => {
+            switch(p) {
+                case 'Urgent': return 'bg-red-50 text-red-700 border-red-200';
+                case 'High': return 'bg-orange-50 text-orange-700 border-orange-200';
+                case 'Medium': return 'bg-blue-50 text-blue-700 border-blue-200';
+                default: return 'bg-slate-50 text-slate-600 border-slate-200';
+            }
+        };
+
+        const getStatusColor = (s: string) => {
+            switch(s) {
+                case 'Open': return 'bg-purple-50 text-purple-700 border-purple-200';
+                case 'Pending': return 'bg-amber-50 text-amber-700 border-amber-200';
+                case 'Closed': return 'bg-emerald-50 text-emerald-700 border-emerald-200';
+                default: return 'bg-slate-50 text-slate-700 border-slate-200';
+            }
+        };
+
+        return (
+            <div className="space-y-6">
+                {/* Search & Filter row */}
+                <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col sm:flex-row gap-4 items-center justify-between">
+                    <div className="relative w-full sm:w-80">
+                        <input 
+                            type="text" 
+                            placeholder="Search tickets by ID, subject..."
+                            value={ticketSearch}
+                            onChange={(e) => setTicketSearch(e.target.value)}
+                            className="w-full pl-9 pr-4 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none font-medium"
+                        />
+                        <MessageSquare className="h-4 w-4 text-slate-400 absolute left-3 top-3" />
+                    </div>
+                    <div className="flex gap-3 w-full sm:w-auto">
+                        <select 
+                            value={ticketPriorityFilter}
+                            onChange={(e) => setTicketPriorityFilter(e.target.value)}
+                            className="px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white outline-none focus:ring-2 focus:ring-purple-500 font-semibold text-slate-700"
+                        >
+                            <option value="All">All Priorities</option>
+                            <option value="Urgent">Urgent</option>
+                            <option value="High">High</option>
+                            <option value="Medium">Medium</option>
+                            <option value="Low">Low</option>
+                        </select>
+                        <select 
+                            value={ticketStatusFilter}
+                            onChange={(e) => setTicketStatusFilter(e.target.value)}
+                            className="px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white outline-none focus:ring-2 focus:ring-purple-500 font-semibold text-slate-700"
+                        >
+                            <option value="All">All Statuses</option>
+                            <option value="Open">Open</option>
+                            <option value="Pending">Pending</option>
+                            <option value="Closed">Closed</option>
+                        </select>
+                    </div>
+                </div>
+
+                {/* Table */}
+                <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm">
+                    <div className="p-6 border-b border-slate-100 flex items-center justify-between">
+                        <div>
+                            <h3 className="font-bold text-lg text-slate-900">Support Ticketing Desk</h3>
+                            <p className="text-sm text-slate-500">Respond to platform operational and billing tickets from lawyers and clients.</p>
+                        </div>
+                        <span className="text-xs font-bold text-slate-400 bg-slate-50 px-2.5 py-1 rounded-full border border-slate-150">
+                            {filteredTickets.length} Tickets Found
+                        </span>
+                    </div>
+
+                    {filteredTickets.length === 0 ? (
+                        <div className="p-12 text-center text-slate-400 font-medium">No support tickets match the filters.</div>
+                    ) : (
+                        <table className="w-full text-left">
+                            <thead className="bg-slate-50 border-b border-slate-200">
+                                <tr>
+                                    <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase">Ticket ID</th>
+                                    <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase">Category</th>
+                                    <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase">Subject & Details</th>
+                                    <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase">Priority</th>
+                                    <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase">Status</th>
+                                    <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase text-right">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-100">
+                                {filteredTickets.map((t) => (
+                                    <tr key={t._id} className="hover:bg-slate-50 transition-colors">
+                                        <td className="px-6 py-4">
+                                            <div className="font-mono font-bold text-slate-900 text-xs">{t.ticketId}</div>
+                                            <div className="text-[10px] text-slate-400 mt-1 font-semibold">{new Date(t.updatedAt || t.createdAt).toLocaleDateString()}</div>
+                                        </td>
+                                        <td className="px-6 py-4 text-sm text-slate-700 font-bold">{t.category}</td>
+                                        <td className="px-6 py-4 max-w-xs">
+                                            <div className="text-sm text-slate-900 font-bold truncate">{t.subject}</div>
+                                            <div className="text-xs text-slate-500 truncate mt-0.5">{t.description}</div>
+                                        </td>
+                                        <td className="px-6 py-4">
+                                            <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${getPriorityColor(t.priority)}`}>
+                                                {t.priority}
+                                            </span>
+                                        </td>
+                                        <td className="px-6 py-4">
+                                            <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${getStatusColor(t.status)}`}>
+                                                {t.status}
+                                            </span>
+                                        </td>
+                                        <td className="px-6 py-4 text-right">
+                                            <button 
+                                                onClick={() => {
+                                                    setSelectedTicket(t);
+                                                    setReplyText(t.adminReply || "");
+                                                    setTicketReplyStatus(t.status);
+                                                }}
+                                                className="px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ml-auto shadow-sm"
+                                            >
+                                                <Eye className="h-3.5 w-3.5" />
+                                                View & Reply
+                                            </button>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    )}
+                </div>
+
+                {/* Reply Modal */}
+                {selectedTicket && (
+                    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-[1px] overflow-y-auto">
+                        <div className="absolute inset-0 bg-slate-900/40" onClick={() => setSelectedTicket(null)}></div>
+                        <div className="bg-white rounded-2xl w-full max-w-2xl border border-slate-200 shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200 relative my-8">
+                            <div className="p-6 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+                                <div className="flex items-center gap-3">
+                                    <div className="p-2 bg-purple-50 rounded-lg text-purple-600 border border-purple-100">
+                                        <MessageSquare className="h-5 w-5" />
+                                    </div>
+                                    <div>
+                                        <h3 className="font-bold text-lg text-slate-900">Resolve Ticket</h3>
+                                        <p className="text-xs text-slate-400 font-mono font-bold">{selectedTicket.ticketId}</p>
+                                    </div>
+                                </div>
+                                <button 
+                                    onClick={() => setSelectedTicket(null)}
+                                    className="p-1.5 text-slate-400 hover:bg-white rounded-lg border border-slate-200 transition-colors shadow-sm"
+                                >
+                                    <ChevronDown className="h-5 w-5" />
+                                </button>
+                            </div>
+                            <form onSubmit={handleReplyTicket} className="p-6 space-y-4">
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div className="bg-slate-50 p-3 rounded-lg border border-slate-100">
+                                        <span className="block text-[10px] font-bold text-slate-400 uppercase">Category</span>
+                                        <span className="text-sm font-semibold text-slate-700">{selectedTicket.category}</span>
+                                    </div>
+                                    <div className="bg-slate-50 p-3 rounded-lg border border-slate-100">
+                                        <span className="block text-[10px] font-bold text-slate-400 uppercase">Priority</span>
+                                        <span className="text-sm font-semibold text-slate-700">{selectedTicket.priority}</span>
+                                    </div>
+                                    <div className="col-span-2 bg-slate-50 p-3 rounded-lg border border-slate-100">
+                                        <span className="block text-[10px] font-bold text-slate-400 uppercase">Subject</span>
+                                        <span className="text-sm font-semibold text-slate-800">{selectedTicket.subject}</span>
+                                    </div>
+                                    <div className="col-span-2 bg-slate-50 p-3 rounded-lg border border-slate-100 max-h-40 overflow-y-auto">
+                                        <span className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Description</span>
+                                        <span className="text-xs text-slate-600 leading-relaxed whitespace-pre-wrap font-medium">{selectedTicket.description}</span>
+                                    </div>
+                                </div>
+
+                                {selectedTicket.attachment && (
+                                    <div className="flex items-center justify-between bg-purple-50/50 p-3 rounded-lg border border-purple-100/50">
+                                        <span className="text-xs text-purple-700 font-semibold flex items-center gap-1.5">
+                                            <FileText className="h-4 w-4" /> Attached Document
+                                        </span>
+                                        <a 
+                                            href={`/user/lawyer/${selectedTicket.attachment.replace(/\\/g, '/')}`}
+                                            target="_blank"
+                                            rel="noreferrer"
+                                            className="text-xs text-blue-600 font-bold hover:underline inline-flex items-center gap-1"
+                                        >
+                                            View Attachment <ExternalLink className="h-3 w-3" />
+                                        </a>
+                                    </div>
+                                )}
+
+                                <div className="space-y-2 pt-2 border-t border-slate-100">
+                                    <div className="flex items-center justify-between">
+                                        <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Admin Reply Response</label>
+                                        <div className="flex items-center gap-2">
+                                            <label className="text-xs text-slate-400 font-medium">Update Status:</label>
+                                            <select 
+                                                value={ticketReplyStatus}
+                                                onChange={(e) => setTicketReplyStatus(e.target.value)}
+                                                className="px-2 py-1 border border-slate-200 rounded text-xs bg-white outline-none focus:ring-1 focus:ring-purple-500 font-bold text-slate-700 cursor-pointer"
+                                            >
+                                                <option value="Open">Open</option>
+                                                <option value="Pending">Pending</option>
+                                                <option value="Closed">Closed</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <textarea 
+                                        rows={4}
+                                        placeholder="Type the resolution message here to send to the lawyer..."
+                                        value={replyText}
+                                        onChange={(e) => setReplyText(e.target.value)}
+                                        className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none font-medium"
+                                        required
+                                    />
+                                </div>
+
+                                <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
+                                    <button 
+                                        type="button"
+                                        onClick={() => setSelectedTicket(null)}
+                                        className="px-4 py-2 border border-slate-200 text-slate-600 rounded-xl text-sm font-semibold hover:bg-slate-50 transition-colors"
+                                    >
+                                        Cancel
+                                    </button>
+                                    <button 
+                                        type="submit"
+                                        className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-xl text-sm font-bold transition-all flex items-center gap-1.5 shadow-sm"
+                                    >
+                                        <Send className="h-4 w-4" />
+                                        Submit Reply
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                )}
+            </div>
+        );
+    };
+
+    const renderDocuments = () => {
+        const filteredDocs = documents.filter(d => {
+            const clientName = d.userId?.fullName || '';
+            const clientEmail = d.userId?.email || '';
+            
+            return (
+                d.title.toLowerCase().includes(docSearch.toLowerCase()) ||
+                d.documentType.toLowerCase().includes(docSearch.toLowerCase()) ||
+                clientName.toLowerCase().includes(docSearch.toLowerCase()) ||
+                clientEmail.toLowerCase().includes(docSearch.toLowerCase())
+            );
+        });
+
+        return (
+            <div className="space-y-6">
+                {/* Search bar */}
+                <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex gap-4 items-center justify-between">
+                    <div className="relative w-full sm:w-96">
+                        <input 
+                            type="text" 
+                            placeholder="Search documents by title, type, or client..."
+                            value={docSearch}
+                            onChange={(e) => setDocSearch(e.target.value)}
+                            className="w-full pl-9 pr-4 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none font-medium"
+                        />
+                        <FileText className="h-4 w-4 text-slate-400 absolute left-3 top-3" />
+                    </div>
+                    <span className="text-xs font-bold text-slate-400 bg-slate-50 px-2.5 py-1 rounded-full border border-slate-150 shrink-0">
+                        {filteredDocs.length} Documents
+                    </span>
+                </div>
+
+                {/* Table */}
+                <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm">
+                    <div className="p-6 border-b border-slate-100">
+                        <h3 className="font-bold text-lg text-slate-900">Client Legal Document Vault</h3>
+                        <p className="text-sm text-slate-500">Inspect AI-generated legal agreements and questionnaires submitted by users.</p>
+                    </div>
+
+                    {filteredDocs.length === 0 ? (
+                        <div className="p-12 text-center text-slate-400 font-medium">No documents found.</div>
+                    ) : (
+                        <table className="w-full text-left">
+                            <thead className="bg-slate-50 border-b border-slate-200">
+                                <tr>
+                                    <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase">Document Title</th>
+                                    <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase">Agreement Type</th>
+                                    <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase">Client Details</th>
+                                    <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase">Status</th>
+                                    <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase">Generated Date</th>
+                                    <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase text-right">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-100">
+                                {filteredDocs.map((d) => (
+                                    <tr key={d._id} className="hover:bg-slate-50 transition-colors">
+                                        <td className="px-6 py-4">
+                                            <div className="font-bold text-slate-900 text-sm flex items-center gap-1.5">
+                                                <FileText className="h-4 w-4 text-slate-400 shrink-0" />
+                                                {d.title}
+                                            </div>
+                                        </td>
+                                        <td className="px-6 py-4">
+                                            <span className="text-xs font-semibold text-slate-650 bg-slate-100 px-2 py-0.5 rounded">
+                                                {d.documentType.replace(/([A-Z])/g, ' $1').trim()}
+                                            </span>
+                                        </td>
+                                        <td className="px-6 py-4">
+                                            <div className="text-sm text-slate-700 font-semibold">{d.userId?.fullName || 'Anonymous Client'}</div>
+                                            <div className="text-[10px] text-slate-400 mt-0.5">{d.userId?.email || 'N/A'}</div>
+                                        </td>
+                                        <td className="px-6 py-4">
+                                            <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border uppercase ${
+                                                d.status === 'final' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
+                                                d.status === 'draft' ? 'bg-amber-50 text-amber-700 border-amber-200' : 'bg-slate-50 text-slate-500 border-slate-200'
+                                            }`}>
+                                                {d.status}
+                                            </span>
+                                        </td>
+                                        <td className="px-6 py-4 text-xs text-slate-500">
+                                            {new Date(d.createdAt).toLocaleDateString()}
+                                        </td>
+                                        <td className="px-6 py-4 text-right">
+                                            <button 
+                                                onClick={() => setSelectedDoc(d)}
+                                                className="px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ml-auto shadow-sm"
+                                            >
+                                                <Eye className="h-3.5 w-3.5" />
+                                                Inspect
+                                            </button>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    )}
+                </div>
+
+                {/* Document Inspector Modal */}
+                {selectedDoc && (
+                    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-[1px] overflow-y-auto">
+                        <div className="absolute inset-0 bg-slate-900/40" onClick={() => setSelectedDoc(null)}></div>
+                        <div className="bg-white rounded-2xl w-full max-w-4xl border border-slate-200 shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200 flex flex-col h-[90vh] relative my-8">
+                            {/* Modal Header */}
+                            <div className="p-6 border-b border-slate-100 flex items-center justify-between shrink-0 bg-slate-50/50">
+                                <div className="flex items-center gap-3">
+                                    <div className="p-2 bg-purple-50 rounded-lg text-purple-600 border border-purple-100">
+                                        <FileText className="h-6 w-6" />
+                                    </div>
+                                    <div>
+                                        <h3 className="font-bold text-lg text-slate-900">{selectedDoc.title}</h3>
+                                        <p className="text-xs text-slate-400">Client: {selectedDoc.userId?.fullName || 'N/A'} ({selectedDoc.userId?.email || 'N/A'})</p>
+                                    </div>
+                                </div>
+                                <button 
+                                    onClick={() => setSelectedDoc(null)}
+                                    className="p-1.5 text-slate-400 hover:bg-white rounded-lg border border-slate-200 transition-colors shadow-sm"
+                                >
+                                    <ChevronDown className="h-5 w-5" />
+                                </button>
+                            </div>
+                            
+                            {/* Modal Body (Scrollable) */}
+                            <div className="flex-1 overflow-y-auto p-6 bg-slate-50 grid grid-cols-1 lg:grid-cols-3 gap-6">
+                                {/* Left/Main side - Document content */}
+                                <div className="lg:col-span-2 bg-white rounded-2xl border border-slate-200 shadow-sm p-8 max-h-[70vh] overflow-y-auto font-serif">
+                                    <div 
+                                        dangerouslySetInnerHTML={{ __html: selectedDoc.content }} 
+                                        className="prose max-w-none text-slate-800 leading-relaxed text-sm select-text" 
+                                    />
+                                </div>
+
+                                {/* Right side - Form inputs and Metadata */}
+                                <div className="space-y-4">
+                                    <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 space-y-3">
+                                        <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest">Metadata</h4>
+                                        <div className="grid grid-cols-2 gap-3 text-xs">
+                                            <div>
+                                                <span className="block text-slate-400 font-semibold">Type</span>
+                                                <span className="font-bold text-slate-700">{selectedDoc.documentType}</span>
+                                            </div>
+                                            <div>
+                                                <span className="block text-slate-400 font-semibold">Status</span>
+                                                <span className="font-bold text-slate-700 uppercase">{selectedDoc.status}</span>
+                                            </div>
+                                            <div>
+                                                <span className="block text-slate-400 font-semibold">Created</span>
+                                                <span className="font-bold text-slate-700">{new Date(selectedDoc.createdAt).toLocaleDateString()}</span>
+                                            </div>
+                                            <div>
+                                                <span className="block text-slate-400 font-semibold">Last Updated</span>
+                                                <span className="font-bold text-slate-700">{new Date(selectedDoc.updatedAt).toLocaleDateString()}</span>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 space-y-3 max-h-[40vh] overflow-y-auto">
+                                        <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest">Questionnaire Inputs</h4>
+                                        {selectedDoc.formData && Object.keys(selectedDoc.formData).length > 0 ? (
+                                            <div className="space-y-2">
+                                                {Object.entries(selectedDoc.formData).map(([k, v]: any) => (
+                                                    <div key={k} className="border-b border-slate-100 pb-1.5 text-xs">
+                                                        <span className="block font-bold text-slate-500 uppercase tracking-tight text-[10px]">{k.replace(/([A-Z])/g, ' $1').trim()}</span>
+                                                        <span className="font-semibold text-slate-800 leading-snug block mt-0.5">{typeof v === 'object' ? JSON.stringify(v) : String(v)}</span>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        ) : (
+                                            <span className="text-xs text-slate-400 italic font-medium">No input fields saved.</span>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Modal Footer */}
+                            <div className="p-4 bg-white border-t border-slate-100 flex justify-end shrink-0">
+                                <button 
+                                    onClick={() => setSelectedDoc(null)}
+                                    className="px-6 py-2.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold transition-colors shadow-sm"
+                                >
+                                    Close Inspector
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
+            </div>
+        );
+    };
+
     const renderContent = () => {
         if (loading) return (
             <div className="flex flex-col items-center justify-center h-64 gap-4">
@@ -1178,6 +2131,8 @@ export default function AdminSettings() {
             case 'lawyers': return renderLawyerApproval();
             case 'cases': return renderCasesAndPayouts();
             case 'users': return renderUserManagement();
+            case 'tickets': return renderTickets();
+            case 'documents': return renderDocuments();
             case 'content': 
             case 'payments':
             case 'system': return renderContentSettings();
@@ -1196,6 +2151,8 @@ export default function AdminSettings() {
                     <p className="text-slate-500 mt-1">
                         {activeTab === 'overview' ? 'Global overview of the Vidhik AI ecosystem.' : 
                          activeTab === 'lawyers' ? 'Manage and verify lawyer credentials for the platform.' :
+                         activeTab === 'tickets' ? 'Manage, reply to, and resolve platform support tickets.' :
+                         activeTab === 'documents' ? 'Inspect and audit AI-generated client documents.' :
                          'Modify system settings and configurations.'}
                     </p>
                 </div>
@@ -1211,6 +2168,278 @@ export default function AdminSettings() {
             <div className="space-y-8">
                 {renderContent()}
             </div>
+
+            {/* User Details Inspector Modal */}
+            {isUserModalOpen && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-[1px] overflow-y-auto">
+                    <div className="absolute inset-0 bg-slate-900/40" onClick={() => { setIsUserModalOpen(false); setSelectedUserDetails(null); }}></div>
+                    <div className="bg-white rounded-2xl w-full max-w-4xl border border-slate-200 shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200 flex flex-col h-[90vh] relative my-8">
+                        {loadingUserDetails ? (
+                            <div className="flex-1 flex flex-col items-center justify-center gap-3">
+                                <RefreshCcw className="h-10 w-10 text-purple-600 animate-spin" />
+                                <p className="text-sm font-semibold text-slate-500">Retrieving profile data...</p>
+                            </div>
+                        ) : selectedUserDetails ? (
+                            <>
+                                {/* Modal Header */}
+                                <div className="p-6 border-b border-slate-100 flex items-center justify-between shrink-0 bg-slate-50/50">
+                                    <div className="flex items-center gap-4">
+                                        <div className="h-12 w-12 rounded-full bg-purple-600 text-white flex items-center justify-center font-bold text-lg">
+                                            {selectedUserDetails.user.fullName.charAt(0).toUpperCase()}
+                                        </div>
+                                        <div>
+                                            <div className="flex items-center gap-2">
+                                                <h3 className="font-bold text-lg text-slate-900">{selectedUserDetails.user.fullName}</h3>
+                                                <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${
+                                                    selectedUserDetails.user.role === 'admin' ? 'bg-purple-100 text-purple-700' :
+                                                    selectedUserDetails.user.role === 'lawyer' ? 'bg-blue-100 text-blue-700' : 'bg-slate-100 text-slate-700'
+                                                }`}>
+                                                    {selectedUserDetails.user.role}
+                                                </span>
+                                                {selectedUserDetails.user.isVerified && (
+                                                    <span className="bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase flex items-center gap-1">
+                                                        <CheckCircle className="h-3 w-3" /> Verified
+                                                    </span>
+                                                )}
+                                            </div>
+                                            <p className="text-xs text-slate-400">{selectedUserDetails.user.email}</p>
+                                        </div>
+                                    </div>
+                                    <button 
+                                        onClick={() => { setIsUserModalOpen(false); setSelectedUserDetails(null); }}
+                                        className="p-1.5 text-slate-400 hover:bg-white rounded-lg border border-slate-200 transition-colors shadow-sm"
+                                    >
+                                        <ChevronDown className="h-5 w-5" />
+                                    </button>
+                                </div>
+
+                                {/* Modal Body (Scrollable) */}
+                                <div className="flex-1 overflow-y-auto p-6 bg-slate-50 flex flex-col md:flex-row gap-6">
+                                    {/* Left Column: Profile & Subscription */}
+                                    <div className="w-full md:w-80 flex flex-col gap-6 shrink-0">
+                                        {/* Profile details card */}
+                                        <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-sm space-y-4">
+                                            <h4 className="font-bold text-xs text-slate-400 uppercase tracking-wider">Account Profile</h4>
+                                            <div className="space-y-3 text-sm">
+                                                {selectedUserDetails.user.phone && (
+                                                    <div>
+                                                        <span className="text-[10px] font-bold text-slate-400 block">PHONE</span>
+                                                        <span className="font-semibold text-slate-700">{selectedUserDetails.user.phone}</span>
+                                                    </div>
+                                                )}
+                                                {selectedUserDetails.user.location && (
+                                                    <div>
+                                                        <span className="text-[10px] font-bold text-slate-400 block">LOCATION</span>
+                                                        <span className="font-semibold text-slate-700">{selectedUserDetails.user.location}</span>
+                                                    </div>
+                                                )}
+                                                {selectedUserDetails.user.designation && (
+                                                    <div>
+                                                        <span className="text-[10px] font-bold text-slate-400 block">DESIGNATION</span>
+                                                        <span className="font-semibold text-slate-700">{selectedUserDetails.user.designation}</span>
+                                                    </div>
+                                                )}
+                                                <div>
+                                                    <span className="text-[10px] font-bold text-slate-400 block">MEMBER SINCE</span>
+                                                    <span className="font-semibold text-slate-700">{new Date(selectedUserDetails.user.createdAt).toLocaleDateString()}</span>
+                                                </div>
+                                                
+                                                {selectedUserDetails.user.role === 'lawyer' && (
+                                                    <>
+                                                        {selectedUserDetails.user.title && (
+                                                            <div>
+                                                                <span className="text-[10px] font-bold text-slate-400 block">TITLE</span>
+                                                                <span className="font-semibold text-slate-700">{selectedUserDetails.user.title}</span>
+                                                            </div>
+                                                        )}
+                                                        {selectedUserDetails.user.expertise && (
+                                                            <div>
+                                                                <span className="text-[10px] font-bold text-slate-400 block">EXPERTISE</span>
+                                                                <span className="font-semibold text-slate-700">{selectedUserDetails.user.expertise}</span>
+                                                            </div>
+                                                        )}
+                                                        {selectedUserDetails.user.hourlyRate !== undefined && (
+                                                            <div>
+                                                                <span className="text-[10px] font-bold text-slate-400 block">HOURLY RATE</span>
+                                                                <span className="font-bold text-purple-600">₹{selectedUserDetails.user.hourlyRate}/hr</span>
+                                                            </div>
+                                                        )}
+                                                        {selectedUserDetails.user.experience && (
+                                                            <div>
+                                                                <span className="text-[10px] font-bold text-slate-400 block">EXPERIENCE</span>
+                                                                <span className="font-semibold text-slate-700">{selectedUserDetails.user.experience}</span>
+                                                            </div>
+                                                        )}
+                                                    </>
+                                                )}
+                                            </div>
+                                        </div>
+
+                                        {/* Subscription Plan details & Control */}
+                                        <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-sm space-y-4">
+                                            <h4 className="font-bold text-xs text-slate-400 uppercase tracking-wider">Subscription Billing</h4>
+                                            <div className="space-y-3">
+                                                <div>
+                                                    <span className="text-[10px] font-bold text-slate-400 block mb-1">CURRENT PLAN</span>
+                                                    <span className="px-2.5 py-1 bg-purple-50 text-purple-700 border border-purple-100 rounded-lg text-xs font-bold inline-block uppercase">
+                                                        {selectedUserDetails.user.subscription || "Professional"}
+                                                    </span>
+                                                </div>
+                                                
+                                                {/* Control Dropdown/Selector */}
+                                                <div className="pt-2 border-t border-slate-100">
+                                                    <label className="text-[10px] font-bold text-slate-400 block mb-1">CHANGE PLAN</label>
+                                                    <select
+                                                        disabled={updatingSubscription}
+                                                        value={selectedUserDetails.user.subscription || "Professional"}
+                                                        onChange={(e) => handleUpdateSubscription(e.target.value)}
+                                                        className="w-full bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs font-semibold text-slate-700 outline-none focus:ring-1 focus:ring-purple-500"
+                                                    >
+                                                        <option value="Free">Free</option>
+                                                        <option value="Starter">Starter</option>
+                                                        <option value="Professional">Professional</option>
+                                                        <option value="Enterprise">Enterprise</option>
+                                                    </select>
+                                                    {updatingSubscription && (
+                                                        <span className="text-[9px] text-purple-600 animate-pulse font-bold mt-1 block">Updating plan...</span>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Right Area: Case Bookings & Documents */}
+                                    <div className="flex-1 flex flex-col gap-6 overflow-hidden">
+                                        {/* Bio / About (If present) */}
+                                        {selectedUserDetails.user.bio && (
+                                            <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-sm">
+                                                <h4 className="font-bold text-xs text-slate-400 uppercase tracking-wider mb-2">Biography</h4>
+                                                <p className="text-sm text-slate-600 leading-relaxed italic">"{selectedUserDetails.user.bio}"</p>
+                                            </div>
+                                        )}
+
+                                        {/* Bookings/Cases section */}
+                                        <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm flex flex-col max-h-[300px]">
+                                            <div className="p-4 border-b border-slate-100 bg-slate-50/50 flex justify-between items-center shrink-0">
+                                                <h4 className="font-bold text-xs text-slate-600 uppercase tracking-wider flex items-center gap-2">
+                                                    <Briefcase className="h-4 w-4 text-purple-500" />
+                                                    Case Consultations ({selectedUserDetails.cases.length})
+                                                </h4>
+                                            </div>
+                                            <div className="flex-1 overflow-y-auto">
+                                                {selectedUserDetails.cases.length === 0 ? (
+                                                    <div className="p-8 text-center text-slate-400 text-sm">
+                                                        No case bookings recorded for this user.
+                                                    </div>
+                                                ) : (
+                                                    <table className="w-full text-left text-sm">
+                                                        <thead className="bg-slate-50 border-b border-slate-100 text-[10px] font-bold text-slate-500 uppercase shrink-0 sticky top-0 z-10">
+                                                            <tr>
+                                                                <th className="px-4 py-2">Title / Subject</th>
+                                                                <th className="px-4 py-2">{selectedUserDetails.user.role === 'lawyer' ? 'Client' : 'Lawyer'}</th>
+                                                                <th className="px-4 py-2">Consultation Date</th>
+                                                                <th className="px-4 py-2">Fee</th>
+                                                                <th className="px-4 py-2 text-right">Status</th>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody className="divide-y divide-slate-100">
+                                                            {selectedUserDetails.cases.map((c: any) => {
+                                                                const party = selectedUserDetails.user.role === 'lawyer' ? c.client : c.lawyer;
+                                                                return (
+                                                                    <tr key={c._id} className="hover:bg-slate-50/50 transition-colors">
+                                                                        <td className="px-4 py-3 font-semibold text-slate-800">
+                                                                            {c.title}
+                                                                            <div className="text-[10px] text-slate-400 max-w-[200px] truncate">{c.description}</div>
+                                                                        </td>
+                                                                        <td className="px-4 py-3 text-slate-600">
+                                                                            {party?.fullName || 'N/A'}
+                                                                            <div className="text-[10px] text-slate-400">{party?.email || ''}</div>
+                                                                        </td>
+                                                                        <td className="px-4 py-3 text-slate-500">
+                                                                            {c.bookingDate ? new Date(c.bookingDate).toLocaleDateString() : 'N/A'}
+                                                                            <div className="text-[10px] text-slate-400">{c.bookingTime || ''}</div>
+                                                                        </td>
+                                                                        <td className="px-4 py-3 font-bold text-slate-700">₹{c.totalFee?.toLocaleString()}</td>
+                                                                        <td className="px-4 py-3 text-right">
+                                                                            <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold uppercase ${
+                                                                                c.status === 'active' ? 'bg-emerald-100 text-emerald-700' :
+                                                                                c.status === 'pending_payment' ? 'bg-amber-100 text-amber-700' :
+                                                                                c.status === 'completed' ? 'bg-blue-100 text-blue-700' : 'bg-slate-100 text-slate-700'
+                                                                            }`}>
+                                                                                {c.status?.replace('_', ' ')}
+                                                                            </span>
+                                                                        </td>
+                                                                    </tr>
+                                                                );
+                                                            })}
+                                                        </tbody>
+                                                    </table>
+                                                )}
+                                            </div>
+                                        </div>
+
+                                        {/* Documents section */}
+                                        <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm flex flex-col max-h-[300px]">
+                                            <div className="p-4 border-b border-slate-100 bg-slate-50/50 flex justify-between items-center shrink-0">
+                                                <h4 className="font-bold text-xs text-slate-600 uppercase tracking-wider flex items-center gap-2">
+                                                    <FileText className="h-4 w-4 text-purple-500" />
+                                                    Generated & Uploaded Documents ({selectedUserDetails.documents.length})
+                                                </h4>
+                                            </div>
+                                            <div className="flex-1 overflow-y-auto">
+                                                {selectedUserDetails.documents.length === 0 ? (
+                                                    <div className="p-8 text-center text-slate-400 text-sm">
+                                                        No documents generated by this user.
+                                                    </div>
+                                                ) : (
+                                                    <table className="w-full text-left text-sm">
+                                                        <thead className="bg-slate-50 border-b border-slate-100 text-[10px] font-bold text-slate-500 uppercase shrink-0 sticky top-0 z-10">
+                                                            <tr>
+                                                                <th className="px-4 py-2">Document Title</th>
+                                                                <th className="px-4 py-2">Type</th>
+                                                                <th className="px-4 py-2">Date Created</th>
+                                                                <th className="px-4 py-2 text-right">Status</th>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody className="divide-y divide-slate-100">
+                                                            {selectedUserDetails.documents.map((d: any) => (
+                                                                <tr key={d._id} className="hover:bg-slate-50/50 transition-colors">
+                                                                    <td className="px-4 py-3 font-semibold text-slate-800">{d.title}</td>
+                                                                    <td className="px-4 py-3 text-slate-600 text-xs">{d.documentType}</td>
+                                                                    <td className="px-4 py-3 text-slate-500">{new Date(d.createdAt).toLocaleDateString()}</td>
+                                                                    <td className="px-4 py-3 text-right">
+                                                                        <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold uppercase bg-slate-100 text-slate-700`}>
+                                                                            {d.status}
+                                                                        </span>
+                                                                    </td>
+                                                                </tr>
+                                                            ))}
+                                                        </tbody>
+                                                    </table>
+                                                )}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </>
+                        ) : (
+                            <div className="flex-1 flex flex-col items-center justify-center text-slate-400">
+                                No user details loaded.
+                            </div>
+                        )}
+
+                        {/* Modal Footer */}
+                        <div className="p-4 bg-white border-t border-slate-100 flex justify-end shrink-0">
+                            <button 
+                                onClick={() => { setIsUserModalOpen(false); setSelectedUserDetails(null); }}
+                                className="px-6 py-2.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold transition-colors shadow-sm"
+                            >
+                                Close Details
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </AdminLayout>
     );
 }

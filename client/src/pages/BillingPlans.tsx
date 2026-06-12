@@ -1,8 +1,10 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import DashboardLayout from "@/layout/DashboardLayout";
 import { UserNav } from "@/components/dashboard/UserNav";
 import { Button } from "@/components/ui/button";
+import api from '@/lib/api';
+import { toast } from 'sonner';
 import { 
     Card, 
     CardContent
@@ -21,7 +23,8 @@ import {
     ShoppingCart,
     MoreVertical,
     FileText,
-    ChevronDown
+    ChevronDown,
+    Loader2
 } from "lucide-react";
 import { 
     Table, 
@@ -40,6 +43,7 @@ import {
 import {
     Dialog,
     DialogContent,
+    DialogHeader,
     DialogTitle,
 } from "@/components/ui/dialog";
 
@@ -51,9 +55,10 @@ interface CircularProgressProps {
     sublabel: string;
     color?: string;
     trend?: string;
+    isUnlimited?: boolean;
 }
 
-const CircularProgress = ({ value, size = 120, strokeWidth = 10, label, sublabel, color = "hsl(var(--primary))", trend }: CircularProgressProps) => {
+const CircularProgress = ({ value, size = 120, strokeWidth = 10, label, sublabel, color = "hsl(var(--primary))", trend, isUnlimited }: CircularProgressProps) => {
     const radius = (size - strokeWidth) / 2;
     const circumference = radius * 2 * Math.PI;
     const offset = circumference - (value / 100) * circumference;
@@ -78,14 +83,14 @@ const CircularProgress = ({ value, size = 120, strokeWidth = 10, label, sublabel
                         strokeWidth={strokeWidth}
                         fill="transparent"
                         strokeDasharray={circumference}
-                        strokeDashoffset={offset}
+                        strokeDashoffset={isUnlimited ? 0 : offset}
                         strokeLinecap="round"
                         className="transition-all duration-500 ease-out"
                     />
                 </svg>
                 <div className="absolute inset-0 flex flex-col items-center justify-center">
-                    <span className="text-2xl font-bold text-foreground">{value}%</span>
-                    <span className="text-[10px] text-muted-foreground uppercase font-medium">Used</span>
+                    <span className="text-2xl font-bold text-foreground">{isUnlimited ? "∞" : `${value}%`}</span>
+                    <span className="text-[10px] text-muted-foreground uppercase font-medium">{isUnlimited ? "Unlimited" : "Used"}</span>
                 </div>
             </div>
             <h5 className="font-bold text-foreground mb-1">{label}</h5>
@@ -109,6 +114,48 @@ export default function BillingPlans() {
     const [topUpTab, setTopUpTab] = useState<'credits' | 'sessions'>('credits');
     const [selectedPackage, setSelectedPackage] = useState<'starter' | 'growth' | 'professional' | 'custom'>('growth');
     const [customCredits] = useState<number | ''>('');
+
+    // Support Ticket States
+    const [isTicketModalOpen, setIsTicketModalOpen] = useState(false);
+    const [ticketSubject, setTicketSubject] = useState("");
+    const [ticketCategory, setTicketCategory] = useState("General");
+    const [ticketPriority, setTicketPriority] = useState("Medium");
+    const [ticketDescription, setTicketDescription] = useState("");
+    const [isSubmittingTicket, setIsSubmittingTicket] = useState(false);
+
+    const handleCreateTicket = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!ticketSubject.trim() || !ticketDescription.trim()) {
+            toast.error("Subject and description are required.");
+            return;
+        }
+
+        setIsSubmittingTicket(true);
+        try {
+            const response = await api.post('/support', {
+                subject: ticketSubject,
+                category: ticketCategory,
+                priority: ticketPriority,
+                description: ticketDescription
+            });
+
+            if (response.data.success) {
+                toast.success("Support ticket created successfully!", {
+                    description: `Ticket ID: ${response.data.data.ticketId}`
+                });
+                setIsTicketModalOpen(false);
+                setTicketSubject("");
+                setTicketCategory("General");
+                setTicketPriority("Medium");
+                setTicketDescription("");
+            }
+        } catch (error: any) {
+            console.error("Failed to submit ticket:", error);
+            toast.error(error.response?.data?.message || "Failed to submit support ticket");
+        } finally {
+            setIsSubmittingTicket(false);
+        }
+    };
 
     // Predefined Packages for Top-up
     const topUpPackages = {
@@ -140,7 +187,8 @@ export default function BillingPlans() {
     const subscriptionTiers = [
         {
             name: "Starter",
-            price: 2499,
+            priceMonthly: 2499,
+            priceYearly: 23990,
             features: [
                 "Basic AI tools",
                 "50 generations/mo",
@@ -153,7 +201,8 @@ export default function BillingPlans() {
         },
         {
             name: "Professional",
-            price: 8299,
+            priceMonthly: 8299,
+            priceYearly: 79670,
             features: [
                 "Unlimited AI generations",
                 "Standard Support (24h)",
@@ -166,7 +215,8 @@ export default function BillingPlans() {
         },
         {
             name: "Enterprise",
-            price: "Custom",
+            priceMonthly: "Custom",
+            priceYearly: "Custom",
             features: [
                 "Custom Integrations",
                 "Priority Lawyer Support",
@@ -177,6 +227,50 @@ export default function BillingPlans() {
             disabled: false
         }
     ];
+
+        const [plans, setPlans] = useState<any[]>(subscriptionTiers);
+    const [loadingPlans, setLoadingPlans] = useState(true);
+    const [stats, setStats] = useState<any>(null);
+    const [loadingStats, setLoadingStats] = useState(true);
+
+    useEffect(() => {
+        const fetchData = async () => {
+            let currentPlanName = 'Free';
+            try {
+                const statsResponse = await api.get('/dashboard/stats');
+                if (statsResponse.data && statsResponse.data.success) {
+                    setStats(statsResponse.data.data);
+                    currentPlanName = statsResponse.data.data.plan || 'Free';
+                }
+            } catch (error) {
+                console.error("Failed to fetch dashboard stats:", error);
+            } finally {
+                setLoadingStats(false);
+            }
+
+            try {
+                const response = await api.get('/admin/public/config');
+                const userPlansConfig = response.data.find((c: any) => c.key === 'USER_PRICING_PLANS');
+                if (userPlansConfig && Array.isArray(userPlansConfig.value)) {
+                    const updatedPlans = userPlansConfig.value.map((tier: any) => {
+                        const isCurrent = tier.name.toLowerCase() === currentPlanName.toLowerCase();
+                        return {
+                            ...tier,
+                            current: isCurrent,
+                            cta: isCurrent ? "Current Active Plan" : (tier.name === 'Enterprise' ? "Contact Sales" : `Upgrade to ${tier.name}`),
+                            disabled: isCurrent
+                        };
+                    });
+                    setPlans(updatedPlans);
+                }
+            } catch (error) {
+                console.error("Error fetching user pricing plans from API:", error);
+            } finally {
+                setLoadingPlans(false);
+            }
+        };
+        fetchData();
+    }, []);
 
     const invoicesList = [
         { date: "Sep 12,\n2024", id: "INV-\n2024-009", plan: "Vidhik\nProfessional", amount: "₹8,299.00", status: "Paid" },
@@ -232,37 +326,59 @@ export default function BillingPlans() {
 
                 {activeTab === 'plans' && (
                     <div className="px-4">
-                        {/* Hero Banner - Neutral Professional Version */}
-                        <div className="relative overflow-hidden rounded-2xl mb-12 border border-border bg-card">
-                            <div className="absolute inset-0 bg-primary/5"></div>
-                            
-                            <div className="relative z-10 p-8 md:p-10 flex flex-col md:flex-row items-center justify-between gap-8">
-                                <div className="space-y-4 text-left">
-                                    <div className="flex items-center gap-3">
-                                        <Badge variant="secondary" className="px-3 py-1 text-[10px] uppercase font-bold tracking-wider">
-                                            CURRENT PLAN
-                                        </Badge>
-                                        <span className="text-sm font-medium text-muted-foreground">• Next billing Nov 12, 2023</span>
-                                    </div>
-                                    <h2 className="text-4xl font-bold text-foreground tracking-tight">Professional Plan</h2>
-                                    <p className="text-muted-foreground text-sm max-w-lg leading-relaxed">
-                                        Your plan includes unlimited AI research generations, standard priority support, and document management.
-                                    </p>
-                                </div>
-                                <div className="flex flex-col items-center md:items-end gap-6">
-                                    <div className="text-foreground text-right">
-                                        <span className="text-5xl font-bold">₹8,299.00</span>
-                                        <span className="text-sm font-medium text-muted-foreground ml-1">/month</span>
-                                    </div>
-                                    <Button 
-                                        onClick={() => navigate('/billing/checkout')}
-                                        className="bg-primary text-primary-foreground hover:bg-primary/90 rounded-xl px-8 py-6 h-auto font-bold shadow-sm transition-transform active:scale-95"
-                                    >
-                                        Manage Subscription
-                                    </Button>
-                                </div>
+                        {loadingPlans ? (
+                            <div className="flex flex-col items-center justify-center py-24 gap-4">
+                                <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
+                                <p className="text-sm text-muted-foreground font-semibold">Loading subscription plans...</p>
                             </div>
-                        </div>
+                        ) : (
+                            <>
+                        {/* Hero Banner - Dynamic Version */}
+                        {(() => {
+                            const currentPlan = plans.find(tier => tier.current) || plans.find(p => p.name === 'Professional') || plans[1] || subscriptionTiers[1];
+                            const currentPlanPrice = billingCycle === 'monthly' ? currentPlan.priceMonthly : currentPlan.priceYearly;
+                            const isCurrentPlanPriceNumeric = typeof currentPlanPrice === 'number';
+                            const heroPriceText = isCurrentPlanPriceNumeric
+                                ? `₹${currentPlanPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                                : currentPlanPrice;
+                            return (
+                                <div className="relative overflow-hidden rounded-2xl mb-12 border border-border bg-card">
+                                    <div className="absolute inset-0 bg-primary/5"></div>
+                                    
+                                    <div className="relative z-10 p-8 md:p-10 flex flex-col md:flex-row items-center justify-between gap-8">
+                                        <div className="space-y-4 text-left">
+                                            <div className="flex items-center gap-3">
+                                                <Badge variant="secondary" className="px-3 py-1 text-[10px] uppercase font-bold tracking-wider">
+                                                    CURRENT PLAN
+                                                </Badge>
+                                                <span className="text-sm font-medium text-muted-foreground">• Next billing Nov 12, 2023</span>
+                                            </div>
+                                            <h2 className="text-4xl font-bold text-foreground tracking-tight">{currentPlan.name} Plan</h2>
+                                            <p className="text-muted-foreground text-sm max-w-lg leading-relaxed">
+                                                {currentPlan.desc || "Your plan includes unlimited AI research generations, standard priority support, and document management."}
+                                            </p>
+                                        </div>
+                                        <div className="flex flex-col items-center md:items-end gap-6">
+                                            <div className="text-foreground text-right">
+                                                <span className="text-5xl font-bold">{heroPriceText}</span>
+                                                <span className="text-sm font-medium text-muted-foreground ml-1">/{billingCycle === 'monthly' ? 'month' : 'year'}</span>
+                                                {billingCycle === 'yearly' && isCurrentPlanPriceNumeric && (
+                                                    <div className="text-[10px] font-semibold text-primary mt-1 text-right">
+                                                        (₹{Math.round(currentPlanPrice / 12).toLocaleString()}/month equivalent)
+                                                    </div>
+                                                )}
+                                            </div>
+                                            <Button 
+                                                onClick={() => navigate('/billing/checkout')}
+                                                className="bg-primary text-primary-foreground hover:bg-primary/90 rounded-xl px-8 py-6 h-auto font-bold shadow-sm transition-transform active:scale-95"
+                                            >
+                                                Manage Subscription
+                                            </Button>
+                                        </div>
+                                    </div>
+                                </div>
+                            );
+                        })()}
 
                         {/* Tiers Header */}
                         <div className="flex items-center justify-between mb-8">
@@ -285,54 +401,79 @@ export default function BillingPlans() {
 
                         {/* Tier Cards */}
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-16">
-                            {subscriptionTiers.map((tier, idx) => (
-                                <div 
-                                    key={idx} 
-                                    className={`relative bg-card rounded-2xl p-8 border ${
-                                        tier.current ? 'border-primary shadow-sm' : 'border-border'
-                                    } flex flex-col transition-all duration-300 hover:shadow-md`}
-                                >
-                                    {tier.current && (
-                                        <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-primary text-primary-foreground text-[10px] font-bold px-6 py-2 rounded-xl shadow-sm whitespace-nowrap tracking-wide uppercase">
-                                            YOUR CURRENT PLAN
-                                        </div>
-                                    )}
-                                    
-                                    <div className="mb-8">
-                                        <h4 className="text-lg font-bold text-foreground mb-2">{tier.name}</h4>
-                                        <div className="flex items-baseline gap-1">
-                                            <span className="text-4xl font-bold text-foreground">{typeof tier.price === 'number' ? `₹${tier.price.toLocaleString()}` : tier.price}</span>
-                                            {typeof tier.price === 'number' && <span className="text-sm font-medium text-muted-foreground mb-0.5 ml-1">/mo</span>}
-                                        </div>
-                                    </div>
+                            {plans.map((tier, idx) => {
+                                const displayPrice = billingCycle === 'monthly' ? tier.priceMonthly : tier.priceYearly;
+                                const isNumeric = typeof displayPrice === 'number';
+                                const priceText = isNumeric ? `₹${displayPrice.toLocaleString()}` : displayPrice;
+                                const isCurrent = !!tier.current;
+                                const isDisabled = !!tier.disabled;
 
-                                    <div className="space-y-4 mb-8 flex-1">
-                                        {tier.features.map((feature, fIdx) => (
-                                            <div key={fIdx} className="flex items-center gap-3">
-                                                <div className="h-5 w-5 rounded-full bg-secondary flex items-center justify-center shrink-0">
-                                                    <Check className="h-3 w-3 text-primary" />
-                                                </div>
-                                                <span className="text-sm text-muted-foreground">{feature}</span>
-                                            </div>
-                                        ))}
-                                    </div>
-
-                                    <Button 
-                                        onClick={() => {
-                                            if (!tier.current && !tier.disabled) {
-                                                navigate('/billing/checkout');
-                                            }
-                                        }}
-                                        variant={tier.current ? "secondary" : "outline"}
-                                        disabled={tier.disabled}
-                                        className={`w-full rounded-xl py-6 font-bold transition-all ${
-                                            tier.current ? 'bg-secondary text-muted-foreground border-none' : 'border-border text-foreground hover:bg-accent'
-                                        }`}
+                                return (
+                                    <div 
+                                        key={idx} 
+                                        className={`relative bg-card rounded-2xl p-8 border ${
+                                            isCurrent ? 'border-primary ring-1 ring-primary/20 shadow-md scale-[1.02]' : 'border-border'
+                                        } flex flex-col transition-all duration-300 hover:shadow-md`}
                                     >
-                                        {tier.cta}
-                                    </Button>
-                                </div>
-                            ))}
+                                        {isCurrent && (
+                                            <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-primary text-primary-foreground text-[10px] font-bold px-6 py-2 rounded-xl shadow-sm whitespace-nowrap tracking-wide uppercase">
+                                                YOUR CURRENT PLAN
+                                            </div>
+                                        )}
+                                        {tier.bestValue && !isCurrent && (
+                                            <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-amber-500 text-white text-[10px] font-bold px-6 py-2 rounded-xl shadow-sm whitespace-nowrap tracking-wide uppercase">
+                                                BEST VALUE
+                                            </div>
+                                        )}
+                                        
+                                        <div className="mb-8">
+                                            <h4 className="text-lg font-bold text-foreground mb-2">{tier.name}</h4>
+                                            <div className="flex flex-col items-start gap-1">
+                                                <div className="flex items-baseline gap-1">
+                                                    <span className="text-4xl font-bold text-foreground">{priceText}</span>
+                                                    {isNumeric && (
+                                                        <span className="text-sm font-medium text-muted-foreground mb-0.5 ml-1">
+                                                            /{billingCycle === 'monthly' ? 'mo' : 'yr'}
+                                                        </span>
+                                                    )}
+                                                </div>
+                                                {billingCycle === 'yearly' && isNumeric && (
+                                                    <span className="text-xs font-semibold text-primary mt-1">
+                                                        ₹{Math.round(displayPrice / 12).toLocaleString()}/mo equivalent
+                                                    </span>
+                                                )}
+                                            </div>
+                                            {tier.desc && <p className="text-xs text-muted-foreground mt-2">{tier.desc}</p>}
+                                        </div>
+
+                                        <div className="space-y-4 mb-8 flex-1">
+                                            {(tier.features || []).map((feature: string, fIdx: number) => (
+                                                <div key={fIdx} className="flex items-center gap-3">
+                                                    <div className="h-5 w-5 rounded-full bg-secondary flex items-center justify-center shrink-0">
+                                                        <Check className="h-3 w-3 text-primary" />
+                                                    </div>
+                                                    <span className="text-sm text-muted-foreground">{feature}</span>
+                                                </div>
+                                            ))}
+                                        </div>
+
+                                        <Button 
+                                            onClick={() => {
+                                                if (!isCurrent && !isDisabled) {
+                                                    navigate('/billing/checkout');
+                                                }
+                                            }}
+                                            variant={isCurrent ? "secondary" : "outline"}
+                                            disabled={isDisabled}
+                                            className={`w-full rounded-xl py-6 font-bold transition-all ${
+                                                isCurrent ? 'bg-secondary text-muted-foreground border-none' : 'border-border text-foreground hover:bg-accent'
+                                            }`}
+                                        >
+                                            {tier.cta || (isCurrent ? "Current Active Plan" : "Upgrade")}
+                                        </Button>
+                                    </div>
+                                );
+                            })}
                         </div>
 
                         {/* Help Section */}
@@ -344,7 +485,10 @@ export default function BillingPlans() {
                                     </div>
                                     <h4 className="text-lg font-bold text-foreground mb-2">Need billing help?</h4>
                                     <p className="text-muted-foreground text-sm mb-6">Our support team is available 24/7 to help you with any issues related to payments or billing.</p>
-                                    <Button className="w-full bg-primary text-primary-foreground hover:bg-primary/90 font-bold h-12 rounded-xl">
+                                    <Button 
+                                        onClick={() => setIsTicketModalOpen(true)}
+                                        className="w-full bg-primary text-primary-foreground hover:bg-primary/90 font-bold h-12 rounded-xl"
+                                    >
                                         Open Support Ticket
                                     </Button>
                                 </CardContent>
@@ -362,64 +506,127 @@ export default function BillingPlans() {
                                 </CardContent>
                             </Card>
                         </div>
+                            </>
+                        )}
                     </div>
                 )}
                 
                 {activeTab === 'usage' && (
-                    <div className="flex flex-col lg:flex-row gap-8 px-4">
-                        <div className="flex-1 space-y-8">
-                            {/* Overview Card */}
-                            <div className="bg-card rounded-2xl p-8 border border-border flex flex-col md:flex-row items-center justify-between gap-6">
-                                <div>
-                                    <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest mb-1">Next Invoice</p>
-                                    <p className="text-sm font-bold text-primary">October 12, 2024</p>
-                                </div>
-                                <div className="text-center md:text-right">
-                                    <p className="text-4xl font-black text-foreground mb-1">₹20,699.00</p>
-                                    <p className="text-[10px] text-muted-foreground font-bold">(Excluding Taxes)</p>
-                                </div>
+                    <div className="flex flex-col lg:flex-row gap-8 px-4 w-full">
+                        {loadingStats ? (
+                            <div className="flex-1 flex flex-col items-center justify-center py-24 gap-4 bg-card rounded-2xl border border-border">
+                                <Loader2 className="animate-spin h-12 w-12 text-primary" />
+                                <p className="text-sm text-muted-foreground font-semibold">Loading usage statistics...</p>
                             </div>
+                        ) : (
+                            <>
+                                <div className="flex-1 space-y-8">
+                                {/* Overview Card */}
+                                <div className="bg-card rounded-2xl p-8 border border-border flex flex-col md:flex-row items-center justify-between gap-6">
+                                    <div>
+                                        <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest mb-1">Current Subscription</p>
+                                        <h3 className="text-2xl font-black text-foreground capitalize">{stats?.plan || 'Free'} Plan</h3>
+                                    </div>
+                                    <div className="text-center md:text-right">
+                                        <span className="text-xs font-bold text-emerald-500 bg-emerald-500/10 px-4 py-1.5 rounded-full border border-emerald-500/20 inline-block uppercase tracking-wider">Active</span>
+                                    </div>
+                                </div>
 
-                            {/* Resource Consumption */}
-                            <div>
-                                <div className="flex items-center justify-between mb-6">
-                                    <h3 className="text-xl font-bold text-foreground">Resource Consumption</h3>
-                                    <Button 
-                                        variant="ghost" 
-                                        className="text-primary hover:bg-transparent p-0 flex items-center gap-1 text-sm font-bold"
-                                        onClick={() => setIsTopUpModalOpen(true)}
-                                    >
-                                        <Plus className="h-4 w-4" />
-                                        Top-up Credits
-                                    </Button>
+                                {/* Resource Consumption */}
+                                <div>
+                                    <div className="flex items-center justify-between mb-6">
+                                        <h3 className="text-xl font-bold text-foreground">Resource Consumption</h3>
+                                        <Button 
+                                            variant="ghost" 
+                                            className="text-primary hover:bg-transparent p-0 flex items-center gap-1 text-sm font-bold"
+                                            onClick={() => setActiveTab('plans')}
+                                        >
+                                            <Plus className="h-4 w-4" />
+                                            Upgrade Subscription
+                                        </Button>
+                                    </div>
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-8">
+                                        {/* 1. AI Document Generation */}
+                                        <Card className="border-border rounded-2xl p-8 text-center flex flex-col items-center justify-between bg-card/40 backdrop-blur-md shadow-sm hover:shadow-md transition-shadow">
+                                            {(() => {
+                                                const used = stats?.usage?.documents ?? 0;
+                                                const limit = stats?.limits?.documents ?? 5;
+                                                const isUnlimited = limit >= 999999;
+                                                const percent = isUnlimited ? 0 : Math.min(Math.round((used / limit) * 100), 100);
+                                                const limitStr = isUnlimited ? 'Unlimited' : limit.toString();
+                                                return (
+                                                    <CircularProgress 
+                                                        value={percent} 
+                                                        label="AI Document Generation" 
+                                                        sublabel={`${used} / ${limitStr} generated`}
+                                                        isUnlimited={isUnlimited}
+                                                        color={percent > 85 ? "hsl(var(--destructive))" : "hsl(var(--primary))"}
+                                                    />
+                                                );
+                                            })()}
+                                        </Card>
+
+                                        {/* 2. Contract Review */}
+                                        <Card className="border-border rounded-2xl p-8 text-center flex flex-col items-center justify-between bg-card/40 backdrop-blur-md shadow-sm hover:shadow-md transition-shadow">
+                                            {(() => {
+                                                const used = stats?.usage?.reviews ?? 0;
+                                                const limit = stats?.limits?.reviews ?? 2;
+                                                const isUnlimited = limit >= 999999;
+                                                const percent = isUnlimited ? 0 : Math.min(Math.round((used / limit) * 100), 100);
+                                                const limitStr = isUnlimited ? 'Unlimited' : limit.toString();
+                                                return (
+                                                    <CircularProgress 
+                                                        value={percent} 
+                                                        label="AI Contract Review" 
+                                                        sublabel={`${used} / ${limitStr} reviewed`}
+                                                        isUnlimited={isUnlimited}
+                                                        color={percent > 85 ? "hsl(var(--destructive))" : "hsl(var(--primary))"}
+                                                    />
+                                                );
+                                            })()}
+                                        </Card>
+
+                                        {/* 3. Legal Research */}
+                                        <Card className="border-border rounded-2xl p-8 text-center flex flex-col items-center justify-between bg-card/40 backdrop-blur-md shadow-sm hover:shadow-md transition-shadow">
+                                            {(() => {
+                                                const used = stats?.usage?.research ?? 0;
+                                                const limit = stats?.limits?.research ?? 5;
+                                                const isUnlimited = limit >= 999999;
+                                                const percent = isUnlimited ? 0 : Math.min(Math.round((used / limit) * 100), 100);
+                                                const limitStr = isUnlimited ? 'Unlimited' : limit.toString();
+                                                return (
+                                                    <CircularProgress 
+                                                        value={percent} 
+                                                        label="AI Legal Assistant" 
+                                                        sublabel={`${used} / ${limitStr} daily queries`}
+                                                        isUnlimited={isUnlimited}
+                                                        color={percent > 85 ? "hsl(var(--destructive))" : "hsl(var(--primary))"}
+                                                    />
+                                                );
+                                            })()}
+                                        </Card>
+
+                                        {/* 4. Lawyer Bookings */}
+                                        <Card className="border-border rounded-2xl p-8 text-center flex flex-col items-center justify-between bg-card/40 backdrop-blur-md shadow-sm hover:shadow-md transition-shadow">
+                                            {(() => {
+                                                const used = stats?.usage?.bookings ?? 0;
+                                                const limit = stats?.limits?.bookings ?? 1;
+                                                const isUnlimited = limit >= 999999;
+                                                const percent = isUnlimited ? 0 : Math.min(Math.round((used / limit) * 100), 100);
+                                                const limitStr = isUnlimited ? 'Unlimited' : limit.toString();
+                                                return (
+                                                    <CircularProgress 
+                                                        value={percent} 
+                                                        label="Lawyer Bookings" 
+                                                        sublabel={`${used} / ${limitStr} booked`}
+                                                        isUnlimited={isUnlimited}
+                                                        color={percent > 85 ? "hsl(var(--destructive))" : "hsl(var(--primary))"}
+                                                    />
+                                                );
+                                            })()}
+                                        </Card>
+                                    </div>
                                 </div>
-                                <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-                                    <Card className="border-border rounded-2xl p-8 text-center flex flex-col items-center">
-                                        <CircularProgress 
-                                            value={25} 
-                                            label="AI Document Credits" 
-                                            sublabel="1,240 / 5,000 credits"
-                                            trend="-15%"
-                                        />
-                                    </Card>
-                                    <Card className="border-border rounded-2xl p-8 text-center flex flex-col items-center">
-                                        <CircularProgress 
-                                            value={70} 
-                                            label="Notary Sessions" 
-                                            sublabel="3 sessions used this cycle"
-                                            color="hsl(var(--primary))"
-                                        />
-                                    </Card>
-                                    <Card className="border-border rounded-2xl p-8 text-center flex flex-col items-center">
-                                        <CircularProgress 
-                                            value={12} 
-                                            label="Storage Capacity" 
-                                            sublabel="5.0 GB Total Limit"
-                                            color="hsl(var(--primary))"
-                                        />
-                                    </Card>
-                                </div>
-                            </div>
 
                             {/* Payment Methods */}
                             <div>
@@ -498,7 +705,10 @@ export default function BillingPlans() {
                                 </div>
                                 <h4 className="text-lg font-bold mb-2">Need Billing Help?</h4>
                                 <p className="text-primary-foreground/70 text-xs mb-8">Our support team is available 24/7 for account queries.</p>
-                                <Button className="w-full bg-primary-foreground text-primary hover:bg-primary-foreground/90 font-bold h-12 rounded-xl">
+                                <Button 
+                                    onClick={() => setIsTicketModalOpen(true)}
+                                    className="w-full bg-primary-foreground text-primary hover:bg-primary-foreground/90 font-bold h-12 rounded-xl"
+                                >
                                     Contact Support
                                 </Button>
                                 <div className="mt-8 pt-6 border-t border-primary-foreground/10 flex items-center justify-center gap-2">
@@ -507,6 +717,8 @@ export default function BillingPlans() {
                                 </div>
                             </div>
                         </div>
+                            </>
+                        )}
                     </div>
                 )}
 
@@ -690,6 +902,94 @@ export default function BillingPlans() {
                             </>
                         )}
                     </div>
+                </DialogContent>
+            </Dialog>
+
+            {/* Support Ticket Modal */}
+            <Dialog open={isTicketModalOpen} onOpenChange={setIsTicketModalOpen}>
+                <DialogContent className="sm:max-w-[480px]">
+                    <DialogHeader>
+                        <DialogTitle className="flex items-center gap-2 text-violet-600">
+                            <HelpCircle className="h-5 w-5" />
+                            Open Support Ticket
+                        </DialogTitle>
+                    </DialogHeader>
+                    <form onSubmit={handleCreateTicket} className="space-y-4 pt-4">
+                        <div className="space-y-2">
+                            <label className="text-sm font-semibold text-gray-700">Subject</label>
+                            <input
+                                type="text"
+                                placeholder="Brief summary of the issue"
+                                value={ticketSubject}
+                                onChange={(e) => setTicketSubject(e.target.value)}
+                                className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-violet-600 focus:border-violet-600 text-gray-800"
+                                required
+                            />
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                                <label className="text-sm font-semibold text-gray-700">Category</label>
+                                <select
+                                    className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-violet-600 focus:border-violet-600 text-gray-800"
+                                    value={ticketCategory}
+                                    onChange={(e) => setTicketCategory(e.target.value)}
+                                >
+                                    <option value="General">General</option>
+                                    <option value="Payments">Billing & Payments</option>
+                                    <option value="Booking">Lawyer Booking</option>
+                                    <option value="Technical">Technical Issue</option>
+                                    <option value="Other">Other</option>
+                                </select>
+                            </div>
+                            <div className="space-y-2">
+                                <label className="text-sm font-semibold text-gray-700">Priority</label>
+                                <select
+                                    className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-violet-600 focus:border-violet-600 text-gray-800"
+                                    value={ticketPriority}
+                                    onChange={(e) => setTicketPriority(e.target.value)}
+                                >
+                                    <option value="Low">Low</option>
+                                    <option value="Medium">Medium</option>
+                                    <option value="High">High</option>
+                                    <option value="Urgent">Urgent</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div className="space-y-2">
+                            <label className="text-sm font-semibold text-gray-700">Description</label>
+                            <textarea
+                                className="w-full border border-gray-200 rounded-xl p-3 text-sm outline-none focus:ring-1 focus:ring-violet-600 focus:border-violet-600 resize-none min-h-[120px] text-gray-800"
+                                placeholder="Describe your issue in detail..."
+                                value={ticketDescription}
+                                onChange={(e) => setTicketDescription(e.target.value)}
+                                required
+                            />
+                        </div>
+                        <div className="flex justify-end gap-3 pt-4 border-t">
+                            <Button
+                                type="button"
+                                variant="outline"
+                                onClick={() => setIsTicketModalOpen(false)}
+                                disabled={isSubmittingTicket}
+                            >
+                                Cancel
+                            </Button>
+                            <Button
+                                type="submit"
+                                disabled={isSubmittingTicket}
+                                className="bg-violet-600 hover:bg-violet-700 text-white font-semibold"
+                            >
+                                {isSubmittingTicket ? (
+                                    <>
+                                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                        Submitting...
+                                    </>
+                                ) : (
+                                    'Submit Ticket'
+                                )}
+                            </Button>
+                        </div>
+                    </form>
                 </DialogContent>
             </Dialog>
         </DashboardLayout>

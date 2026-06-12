@@ -21,7 +21,7 @@ api.interceptors.request.use(
             config.baseURL += '/';
         }
 
-        const token = localStorage.getItem('vidhik_auth_token');
+        const token = localStorage.getItem('user_auth_token');
         if (token) {
             config.headers.Authorization = `Bearer ${token}`;
         }
@@ -35,8 +35,8 @@ api.interceptors.response.use(
     (response) => response,
     (error) => {
         if (error.response?.status === 401) {
-            localStorage.removeItem('vidhik_auth_token');
-            localStorage.removeItem('vidhik_user_data');
+            localStorage.removeItem('user_auth_token');
+            localStorage.removeItem('user_profile_data');
             window.location.href = '/user/login';
         }
         return Promise.reject(error);

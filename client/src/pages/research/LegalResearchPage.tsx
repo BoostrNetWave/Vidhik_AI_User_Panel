@@ -49,6 +49,7 @@ export default function LegalResearchPage() {
     const [showResults, setShowResults] = useState(false);
     const [progress, setProgress] = useState(0);
     const [history, setHistory] = useState<any[]>([]);
+    const [selectedModel, setSelectedModel] = useState("gpt-4o");
 
     // File & Audio State
     const [attachedFile, setAttachedFile] = useState<File | null>(null);
@@ -58,7 +59,6 @@ export default function LegalResearchPage() {
     const [isSaved, setIsSaved] = useState(false);
     const [activeTab, setActiveTab] = useState<'research' | 'history'>('research');
     const [historyFilter, setHistoryFilter] = useState<'all' | 'month' | 'week'>('all');
-    const [recentPage, setRecentPage] = useState(0);
     const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
     const [isSettingsOpen, setIsSettingsOpen] = useState(false);
     const [isClearingAll, setIsClearingAll] = useState(false);
@@ -70,7 +70,6 @@ export default function LegalResearchPage() {
     ]);
     const [filesScanned, setFilesScanned] = useState(0);
     const [timeRemaining, setTimeRemaining] = useState(12);
-    const ITEMS_PER_PAGE = 4;
 
     const filteredHistory = useMemo(() => {
         if (historyFilter === 'all') return history;
@@ -173,7 +172,7 @@ export default function LegalResearchPage() {
                 setTimeRemaining(0);
             }, 7000);
 
-            const response = await api.post('/research', { query: searchQuery });
+            const response = await api.post('/research', { query: searchQuery, model: selectedModel });
 
             // Wait slightly for the final stage to show completion if needed
             await new Promise(r => setTimeout(r, 7500));
@@ -186,8 +185,19 @@ export default function LegalResearchPage() {
             setAttachedFile(null);
             setAudioBlob(null);
             // Moved fetchHistory to handleSave to ensure results are only saved when explicitly requested
-        } catch (err) {
+        } catch (err: any) {
             console.error("Research failed:", err);
+            if (err.response?.status === 403 && err.response?.data?.error === 'limit_reached') {
+                toast.error('Subscription limit reached', {
+                    description: err.response.data.message || 'You have reached the daily legal research query limit for your plan.',
+                    action: {
+                        label: 'Upgrade Plan',
+                        onClick: () => window.location.href = '/user/billing'
+                    }
+                });
+            } else {
+                toast.error(err.response?.data?.message || "Research failed. Please check your query or try again.");
+            }
         } finally {
             setIsSearching(false);
             setIsSaved(false); // Reset saved status for new research
@@ -492,20 +502,7 @@ export default function LegalResearchPage() {
         return `${mins}:${secs.toString().padStart(2, '0')}`;
     };
 
-    const recentTopics = [
-        { title: "Property Transfer Act", date: "Last researched 2h ago", description: "Understanding Section 5 and validation of gift deeds under the Transfer of Property Act.." },
-        { title: "Employment Contracts", date: "Last researched Yesterday", description: "Standard non-compete clauses for IT service companies and their legal enforceability.." },
-        { title: "Tax Compliance GST", date: "Last researched 2 days ago", description: "Updated filing regulations for e-commerce operators and input tax credit rules.." },
-        { title: "IPR Infringement", date: "Last researched Oct 12", description: "Trademark registration process and recent Delhi High Court rulings on software piracy.." },
-    ];
 
-
-    const legalUpdates = [
-        { category: "SUPREME COURT", time: "15 mins ago", title: "New guidelines issued for digital evidence submission in commercial suits.", description: "The Court has formalized the protocol for encrypted file sharing and metadata preservation." },
-        { category: "TAXATION", time: "2 hours ago", title: "Amendments proposed to the Income Tax Act for Startups (FY 2024-25).", description: "Proposed changes aim to simplify the Angel Tax assessment process and provide 3-year holiday." },
-        { category: "DATA PRIVACY", time: "5 hours ago", title: "DPDP Act compliance deadline extended for small enterprises.", description: "MEITY announces a 6-month extension for startups with turnover below ₹50 Cr." },
-        { category: "CORPORATE LAW", time: "Yesterday", title: "MCA updates CSR reporting format for FY 2023-24.", description: "Companies must now provide detailed breakdown of environmental project spends." },
-    ];
 
     return (
         <DashboardLayout userNav={<UserNav />}>
@@ -546,9 +543,9 @@ export default function LegalResearchPage() {
                                 <Button
                                     variant={activeTab === 'history' ? 'secondary' : 'ghost'}
                                     size="sm"
-                                    className={`rounded-xl px-6 font-bold ${activeTab === 'history' ? 'bg-white shadow-sm hover:bg-white' : 'text-gray-500'} ${(!showResults || isSearching) ? 'opacity-50 cursor-not-allowed' : ''}`}
-                                    onClick={() => !(!showResults || isSearching) && setActiveTab('history')}
-                                    disabled={!showResults || isSearching}
+                                    className={`rounded-xl px-6 font-bold ${activeTab === 'history' ? 'bg-white shadow-sm hover:bg-white' : 'text-gray-500'} ${isSearching ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                    onClick={() => !isSearching && setActiveTab('history')}
+                                    disabled={isSearching}
                                 >
                                     History
                                 </Button>
@@ -556,7 +553,97 @@ export default function LegalResearchPage() {
                         </div>
                     </div>
 
-                    {isSearching ? (
+                    {activeTab === 'history' ? (
+                        <div className="space-y-8 animate-in fade-in duration-700">
+                            <div className="bg-white p-10 rounded-[3rem] shadow-xl border border-gray-100 space-y-10">
+                                <div className="flex items-center justify-between">
+                                    <div className="space-y-2">
+                                        <h2 className="text-3xl font-black text-gray-900">Research History</h2>
+                                        <p className="text-gray-500 font-medium">Access your past analyses and saved legal research.</p>
+                                    </div>
+                                    <div className="flex items-center gap-4 bg-gray-50 p-2 rounded-2xl">
+                                        <Button
+                                            variant={historyFilter === 'all' ? "secondary" : "ghost"}
+                                            size="sm"
+                                            className={`rounded-xl font-bold ${historyFilter === 'all' ? 'bg-white shadow-sm hover:bg-white text-gray-700' : ''}`}
+                                            onClick={() => setHistoryFilter('all')}
+                                        >
+                                            All Time
+                                        </Button>
+                                        <Button
+                                            variant={historyFilter === 'month' ? "secondary" : "ghost"}
+                                            size="sm"
+                                            className={`rounded-xl font-bold ${historyFilter === 'month' ? 'bg-white shadow-sm hover:bg-white text-gray-700' : ''}`}
+                                            onClick={() => setHistoryFilter('month')}
+                                        >
+                                            This Month
+                                        </Button>
+                                        <Button
+                                            variant={historyFilter === 'week' ? "secondary" : "ghost"}
+                                            size="sm"
+                                            className={`rounded-xl font-bold ${historyFilter === 'week' ? 'bg-white shadow-sm hover:bg-white text-gray-700' : ''}`}
+                                            onClick={() => setHistoryFilter('week')}
+                                        >
+                                            This Week
+                                        </Button>
+                                    </div>
+                                </div>
+
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pb-6">
+                                    {filteredHistory.map((record: any, i: number) => (
+                                        <Card
+                                            key={i}
+                                            className="rounded-[2.5rem] border border-gray-100 hover:border-violet-200 hover:shadow-2xl hover:-translate-y-1 transition-all duration-300 group cursor-pointer overflow-hidden"
+                                            onClick={() => {
+                                                setQuery(record.description);
+                                                setMessages([
+                                                    { role: 'user', content: record.description },
+                                                    { role: 'assistant', content: record.answer }
+                                                ]);
+                                                setShowResults(true);
+                                                setActiveTab('research');
+                                            }}
+                                        >
+                                            <div className="p-8 flex flex-col h-full relative">
+                                                <div className="flex items-center justify-between mb-6">
+                                                    <Badge className="bg-violet-50 text-violet-600 border-none font-black text-[9px] px-2 py-0.5 tracking-widest uppercase">
+                                                        {record.category || "General Research"}
+                                                    </Badge>
+                                                    <div className="flex items-center gap-2">
+                                                        <span className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">{record.date || record.time}</span>
+                                                        {record.id && (
+                                                            <Button
+                                                                variant="ghost"
+                                                                size="icon"
+                                                                className="h-8 w-8 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-xl"
+                                                                onClick={(e) => handleDeleteResearch(e, record.id)}
+                                                            >
+                                                                <Trash2 className="h-4 w-4" />
+                                                            </Button>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                                <h3 className="text-xl font-bold text-gray-900 mb-3 group-hover:text-violet-600 transition-colors">
+                                                    {record.title || (record.description.length > 50 ? record.description.substring(0, 50) + '...' : record.description)}
+                                                </h3>
+                                                <p className="text-sm text-gray-500 leading-relaxed line-clamp-2 mb-8">{record.description}</p>
+                                                <div className="mt-auto flex items-center justify-between border-t border-gray-50 pt-6">
+                                                    <div className="flex items-center gap-2 text-[10px] font-black text-gray-400 uppercase tracking-widest">
+                                                        <Sparkles className="h-3 w-3" />
+                                                        AI Verified
+                                                    </div>
+                                                    <Button variant="ghost" size="sm" className="rounded-xl font-bold p-0 group-hover:text-violet-600">
+                                                        Relaunch
+                                                        <ArrowRight className="h-4 w-4 ml-2 group-hover:translate-x-1 transition-transform" />
+                                                    </Button>
+                                                </div>
+                                            </div>
+                                        </Card>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+                    ) : isSearching ? (
                         <div className="flex flex-col items-center justify-center space-y-12 animate-in fade-in zoom-in-95 duration-1000 pt-10 relative">
                             {/* Decorative Background Glows */}
                             <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-violet-400/10 rounded-full blur-[120px] -z-10 animate-pulse"></div>
@@ -743,6 +830,28 @@ export default function LegalResearchPage() {
                                             </Button>
                                         </div>
                                     </div>
+                                    <div className="flex flex-wrap items-center gap-2 px-4 pb-2 pt-3 border-t border-gray-100 mt-3">
+                                        <span className="text-[10px] font-black uppercase text-gray-400 tracking-widest mr-2">AI Model:</span>
+                                        {[
+                                            { name: "GPT-4o (Premium)", val: "gpt-4o" },
+                                            { name: "GPT-4o-mini (Fast)", val: "gpt-4o-mini" },
+                                            { name: "Claude 3.5 Sonnet", val: "anthropic/claude-3.5-sonnet" },
+                                            { name: "Llama 3 70B", val: "meta-llama/llama-3-70b-instruct" }
+                                        ].map((m) => (
+                                            <button
+                                                key={m.val}
+                                                type="button"
+                                                onClick={() => setSelectedModel(m.val)}
+                                                className={`px-3 py-1 text-xs font-bold rounded-full transition-all ${
+                                                    selectedModel === m.val
+                                                        ? "bg-violet-50 text-violet-700 border border-violet-200"
+                                                        : "text-gray-500 hover:bg-gray-50 border border-transparent"
+                                                }`}
+                                            >
+                                                {m.name}
+                                            </button>
+                                        ))}
+                                    </div>
                                 </div>
                             </div>
 
@@ -772,169 +881,6 @@ export default function LegalResearchPage() {
                                     <BookOpen className="h-4 w-4 text-orange-600" />
                                     Statute Explanation
                                 </Button>
-                            </div>
-
-                            {/* Recent Topics */}
-                            <div className="w-full space-y-6 pt-10">
-                                <div className="flex items-center justify-between">
-                                    <h3 className="text-xs font-black text-gray-400 uppercase tracking-widest">Recent Research Topics</h3>
-                                    <Button variant="link" className="text-violet-600 text-xs font-bold uppercase tracking-widest" onClick={() => setActiveTab('history')}>View All History</Button>
-                                </div>
-
-                                {history.length > 0 || recentTopics.length > 0 ? (
-                                    <>
-                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                            {(history.length > 0 ? history : recentTopics)
-                                                .slice(recentPage * ITEMS_PER_PAGE, (recentPage + 1) * ITEMS_PER_PAGE)
-                                                .map((topic, i) => (
-                                                    <Card key={i} className="rounded-[2rem] border-none shadow-sm bg-white hover:shadow-xl hover:-translate-y-1 transition-all duration-300 group cursor-pointer" onClick={() => {
-                                                        handleSearch(topic.description || topic.query);
-                                                    }}>
-                                                        <CardContent className="p-8 relative">
-                                                            <div className="space-y-2 flex-1">
-                                                                <div className="flex flex-col">
-                                                                    <div className="flex items-center justify-between">
-                                                                        <h4 className="font-bold text-gray-900 text-lg line-clamp-1">{topic.title}</h4>
-                                                                        {topic.id && (
-                                                                            <Button
-                                                                                variant="ghost"
-                                                                                size="icon"
-                                                                                className="h-8 w-8 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-xl"
-                                                                                onClick={(e) => handleDeleteResearch(e, topic.id)}
-                                                                            >
-                                                                                <Trash2 className="h-4 w-4" />
-                                                                            </Button>
-                                                                        )}
-                                                                    </div>
-                                                                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{topic.date || (topic.createdAt && new Date(topic.createdAt).toLocaleDateString())}</p>
-                                                                </div>
-                                                                <p className="text-sm text-gray-500 leading-relaxed line-clamp-2">{topic.description || topic.query}</p>
-                                                            </div>
-                                                        </CardContent>
-                                                    </Card>
-                                                ))}
-                                        </div>
-
-                                        {/* Pagination Controls */}
-                                        {(history.length > ITEMS_PER_PAGE || (!history.length && recentTopics.length > ITEMS_PER_PAGE)) && (
-                                            <div className="flex items-center justify-center gap-4 pt-4">
-                                                <Button
-                                                    variant="ghost"
-                                                    size="sm"
-                                                    className="rounded-xl font-bold text-gray-400 hover:text-violet-600 disabled:opacity-30"
-                                                    onClick={() => setRecentPage(prev => Math.max(0, prev - 1))}
-                                                    disabled={recentPage === 0}
-                                                >
-                                                    Previous
-                                                </Button>
-                                                <div className="flex gap-2">
-                                                    {Array.from({ length: Math.ceil((history.length || recentTopics.length) / ITEMS_PER_PAGE) }).map((_, idx) => (
-                                                        <div
-                                                            key={idx}
-                                                            className={`h-1.5 rounded-full transition-all duration-300 ${recentPage === idx ? 'w-6 bg-violet-600' : 'w-1.5 bg-gray-200'}`}
-                                                        />
-                                                    ))}
-                                                </div>
-                                                <Button
-                                                    variant="ghost"
-                                                    size="sm"
-                                                    className="rounded-xl font-bold text-gray-400 hover:text-violet-600 disabled:opacity-30"
-                                                    onClick={() => setRecentPage(prev => Math.min(Math.ceil((history.length || recentTopics.length) / ITEMS_PER_PAGE) - 1, prev + 1))}
-                                                    disabled={recentPage >= Math.ceil((history.length || recentTopics.length) / ITEMS_PER_PAGE) - 1}
-                                                >
-                                                    Next
-                                                </Button>
-                                            </div>
-                                        )}
-                                    </>
-                                ) : (
-                                    <div className="text-center py-10 text-gray-400 font-medium">No recent topics found</div>
-                                )}
-                            </div>
-                        </div>
-                    ) : activeTab === 'history' ? (
-                        <div className="space-y-8 animate-in fade-in duration-700">
-                            <div className="bg-white p-10 rounded-[3rem] shadow-xl border border-gray-100 space-y-10">
-                                <div className="flex items-center justify-between">
-                                    <div className="space-y-2">
-                                        <h2 className="text-3xl font-black text-gray-900">Research History</h2>
-                                        <p className="text-gray-500 font-medium">Access your past analyses and saved legal research.</p>
-                                    </div>
-                                    <div className="flex items-center gap-4 bg-gray-50 p-2 rounded-2xl">
-                                        <Button
-                                            variant={historyFilter === 'all' ? "secondary" : "ghost"}
-                                            size="sm"
-                                            className={`rounded-xl font-bold ${historyFilter === 'all' ? 'bg-white shadow-sm hover:bg-white text-gray-700' : ''}`}
-                                            onClick={() => setHistoryFilter('all')}
-                                        >
-                                            All Time
-                                        </Button>
-                                        <Button
-                                            variant={historyFilter === 'month' ? "secondary" : "ghost"}
-                                            size="sm"
-                                            className={`rounded-xl font-bold ${historyFilter === 'month' ? 'bg-white shadow-sm hover:bg-white text-gray-700' : ''}`}
-                                            onClick={() => setHistoryFilter('month')}
-                                        >
-                                            This Month
-                                        </Button>
-                                        <Button
-                                            variant={historyFilter === 'week' ? "secondary" : "ghost"}
-                                            size="sm"
-                                            className={`rounded-xl font-bold ${historyFilter === 'week' ? 'bg-white shadow-sm hover:bg-white text-gray-700' : ''}`}
-                                            onClick={() => setHistoryFilter('week')}
-                                        >
-                                            This Week
-                                        </Button>
-                                    </div>
-                                </div>
-
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pb-6">
-                                    {filteredHistory.map((record: any, i: number) => (
-                                        <Card
-                                            key={i}
-                                            className="rounded-[2.5rem] border border-gray-100 hover:border-violet-200 hover:shadow-2xl hover:-translate-y-1 transition-all duration-300 group cursor-pointer overflow-hidden"
-                                            onClick={() => {
-                                                handleSearch(record.description);
-                                                setActiveTab('research');
-                                            }}
-                                        >
-                                            <div className="p-8 flex flex-col h-full relative">
-                                                <div className="flex items-center justify-between mb-6">
-                                                    <Badge className="bg-violet-50 text-violet-600 border-none font-black text-[9px] px-2 py-0.5 tracking-widest uppercase">
-                                                        {record.category || "General Research"}
-                                                    </Badge>
-                                                    <div className="flex items-center gap-2">
-                                                        <span className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">{record.date || record.time}</span>
-                                                        {record.id && (
-                                                            <Button
-                                                                variant="ghost"
-                                                                size="icon"
-                                                                className="h-8 w-8 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-xl"
-                                                                onClick={(e) => handleDeleteResearch(e, record.id)}
-                                                            >
-                                                                <Trash2 className="h-4 w-4" />
-                                                            </Button>
-                                                        )}
-                                                    </div>
-                                                </div>
-                                                <h3 className="text-xl font-bold text-gray-900 mb-3 group-hover:text-violet-600 transition-colors">
-                                                    {record.title || (record.description.length > 50 ? record.description.substring(0, 50) + '...' : record.description)}
-                                                </h3>
-                                                <p className="text-sm text-gray-500 leading-relaxed line-clamp-2 mb-8">{record.description}</p>
-                                                <div className="mt-auto flex items-center justify-between border-t border-gray-50 pt-6">
-                                                    <div className="flex items-center gap-2 text-[10px] font-black text-gray-400 uppercase tracking-widest">
-                                                        <Sparkles className="h-3 w-3" />
-                                                        AI Verified
-                                                    </div>
-                                                    <Button variant="ghost" size="sm" className="rounded-xl font-bold p-0 group-hover:text-violet-600">
-                                                        Relaunch
-                                                        <ArrowRight className="h-4 w-4 ml-2 group-hover:translate-x-1 transition-transform" />
-                                                    </Button>
-                                                </div>
-                                            </div>
-                                        </Card>
-                                    ))}
-                                </div>
                             </div>
                         </div>
                     ) : (
@@ -1083,59 +1029,7 @@ export default function LegalResearchPage() {
                                 </div>
                             </div>
                         </div>
-                    )}
-
-                    {/* Horizontal Legal Updates - Moved from Sidebar */}
-                    {!isSearching && !showResults && activeTab === 'research' && (
-                        <div className="w-full space-y-8 pt-10 border-t border-gray-100">
-                            <div className="flex items-center justify-between">
-                                <div className="flex items-center gap-4">
-                                    <h3 className="text-sm font-black text-gray-900 uppercase tracking-tighter">Global Legal Updates</h3>
-                                    <div className="flex items-center gap-2 px-3 py-1 rounded-full border bg-red-50 border-red-100">
-                                        <div className="h-1.5 w-1.5 rounded-full bg-red-500 animate-pulse"></div>
-                                        <span className="text-[10px] font-black uppercase tracking-widest text-red-600">Live Feed</span>
-                                    </div>
-                                </div>
-                                <Button 
-                                    variant="outline" 
-                                    size="sm"
-                                    className="rounded-xl font-bold border-gray-200 text-gray-600 hover:bg-gray-50 bg-white"
-                                    onClick={() => setIsSettingsOpen(true)}
-                                >
-                                    <Globe className="h-4 w-4 mr-2" />
-                                    Configure Feed
-                                </Button>
-                            </div>
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                                {legalUpdates.map((item, i) => (
-                                    <Card key={i} className="rounded-[2.5rem] border-none shadow-sm bg-white hover:shadow-xl hover:-translate-y-1 transition-all duration-300 group cursor-pointer" onClick={() => handleSearch(item.description)}>
-                                        <CardContent className="p-8 flex flex-col h-full">
-                                            <div className="flex items-center justify-between mb-4">
-                                                <Badge className={`${item.category === 'SUPREME COURT' ? 'bg-violet-50 text-violet-600' :
-                                                    item.category === 'TAXATION' ? 'bg-orange-50 text-orange-600' :
-                                                        item.category === 'DATA PRIVACY' ? 'bg-green-50 text-green-600' :
-                                                            'bg-purple-50 text-purple-600'
-                                                    } border-none font-black text-[9px] px-2 py-0.5 tracking-widest uppercase`}>
-                                                    {item.category}
-                                                </Badge>
-                                                <span className="text-[10px] text-gray-400 font-bold">{item.time}</span>
-                                            </div>
-                                            <h5 className="font-bold text-gray-900 leading-snug group-hover:text-violet-600 transition-colors line-clamp-2 mb-3">
-                                                {item.title}
-                                            </h5>
-                                            <p className="text-sm text-gray-500 leading-relaxed line-clamp-3 mb-6">{item.description}</p>
-                                            <div className="mt-auto">
-                                                <div className="text-[10px] font-black uppercase text-violet-600 tracking-widest flex items-center gap-1">
-                                                    Explore Implications
-                                                    <ArrowRight className="h-3 w-3 group-hover:translate-x-1 transition-transform" />
-                                                </div>
-                                            </div>
-                                        </CardContent>
-                                    </Card>
-                                ))}
-                            </div>
-                        </div>
-                    )}
+                        )}
 
                     {/* Pro Plan Banner - Horizontal Version */}
                     {!isSearching && (

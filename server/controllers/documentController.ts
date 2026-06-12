@@ -5,11 +5,19 @@ import { Request, Response } from 'express';
 import { documentService } from '../services/documentService';
 import { getAllDocumentTypes } from '../config/documentTypes';
 import Document from '../models/Document';
+import UsageRecord from '../models/UsageRecord';
 import mammoth from 'mammoth';
 import { createRequire } from 'module';
 
 const require = createRequire(import.meta.url);
-const pdf = require('pdf-parse');
+const pdfModule = require('pdf-parse');
+
+const extractTextFromPDF = async (buffer: Buffer): Promise<string> => {
+    const parser = new pdfModule.PDFParse({ data: buffer });
+    const textResult = await parser.getText();
+    await parser.destroy();
+    return textResult.text || '';
+};
 
 /**
  * Get all available document types
@@ -47,6 +55,12 @@ export const generateEmploymentContract = async (req: Request, res: Response) =>
             formData,
             userId: req.body.userId,
             customModel: formData.model
+        });
+
+        // Log usage in UsageRecord
+        await UsageRecord.create({
+            userId: (req as any).user?._id || req.body.userId,
+            featureType: 'document_generation'
         });
 
         res.json({
@@ -94,6 +108,12 @@ export const generateDocument = async (req: Request, res: Response) => {
             formData,
             userId: req.body.userId,
             customModel: model
+        });
+
+        // Log usage in UsageRecord
+        await UsageRecord.create({
+            userId: (req as any).user?._id || req.body.userId,
+            featureType: 'document_generation'
         });
 
         res.json({
@@ -355,8 +375,7 @@ export const reviewDocument = async (req: Request, res: Response) => {
         console.log(`[Document Controller] Extracting text from ${filename} (${file.mimetype}). Deep Scan: ${deepScan}`);
 
         if (file.mimetype === 'application/pdf') {
-            const pdfData = await pdf(file.buffer);
-            extractedText = pdfData.text;
+            extractedText = await extractTextFromPDF(file.buffer);
         } else if (file.mimetype === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
             const result = await mammoth.extractRawText({ buffer: file.buffer });
             extractedText = result.value;
@@ -376,6 +395,12 @@ export const reviewDocument = async (req: Request, res: Response) => {
 
         const analysisResults = await documentService.reviewDocument(filename, extractedText, userId, deepScan);
 
+        // Log usage in UsageRecord
+        await UsageRecord.create({
+            userId: (req as any).user?._id || userId,
+            featureType: 'document_review'
+        });
+
         res.json({
             success: true,
             data: analysisResults
@@ -384,6 +409,84 @@ export const reviewDocument = async (req: Request, res: Response) => {
         console.error('[Document Review] Error:', error);
         res.status(500).json({
             error: 'Failed to analyze document',
+            message: error?.message || 'Unknown error'
+        });
+    }
+};
+
+/**
+ * Upload a document directly to the user's workspace
+ */
+export const uploadDocument = async (req: Request, res: Response) => {
+    try {
+        const { userId, title, documentType } = req.body;
+        const file = (req as any).file;
+
+        if (!userId) {
+            return res.status(400).json({
+                error: 'Missing userId',
+                message: 'userId is required'
+            });
+        }
+
+        if (!file) {
+            return res.status(400).json({
+                error: 'Missing file',
+                message: 'A file upload is required'
+            });
+        }
+
+        let extractedText = '';
+        const filename = file.originalname;
+
+        console.log(`[Document Upload] Extracting text from ${filename} (${file.mimetype}) for user: ${userId}`);
+
+        if (file.mimetype === 'application/pdf') {
+            extractedText = await extractTextFromPDF(file.buffer);
+        } else if (file.mimetype === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
+            const result = await mammoth.extractRawText({ buffer: file.buffer });
+            extractedText = result.value;
+        } else {
+            // Fallback to text reading for other types (e.g., .txt)
+            extractedText = file.buffer.toString('utf8');
+        }
+
+        if (!extractedText || extractedText.trim().length === 0) {
+            return res.status(400).json({
+                error: 'Extraction failed',
+                message: 'Could not extract text from document. Please ensure it is not empty.'
+            });
+        }
+
+        // Convert the extracted text to clean paragraph-wrapped HTML
+        const formattedContent = extractedText
+            .split(/\n\s*\n/)
+            .map(para => para.trim())
+            .filter(para => para.length > 0)
+            .map(para => `<p>${para.replace(/\n/g, '<br />')}</p>`)
+            .join('\n');
+
+        const newDocument = new Document({
+            userId,
+            title: title || filename,
+            documentType: documentType || 'uploaded-document',
+            content: formattedContent,
+            formData: {},
+            status: 'draft' // Default status
+        });
+
+        const savedDocument = await newDocument.save();
+
+        res.status(201).json({
+            success: true,
+            message: 'Document uploaded and saved successfully',
+            data: savedDocument
+        });
+
+    } catch (error: any) {
+        console.error('[Document Upload] Error:', error);
+        res.status(500).json({
+            error: 'Failed to upload document',
             message: error?.message || 'Unknown error'
         });
     }

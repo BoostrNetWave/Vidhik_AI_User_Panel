@@ -1,7 +1,34 @@
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { FileText, AlertCircle, Video, Zap } from "lucide-react"
+import { FileText, AlertCircle, Video, Zap, Loader2 } from "lucide-react"
+import api from "@/lib/api"
 
 export function StatsCards() {
+    const [stats, setStats] = useState({
+        totalDocuments: 0,
+        pendingReviews: 0,
+        activeConsultations: 0,
+        aiCredits: 0,
+        plan: "Starter"
+    });
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        const fetchStats = async () => {
+            try {
+                const response = await api.get('/dashboard/stats');
+                if (response.data && response.data.success) {
+                    setStats(response.data.data);
+                }
+            } catch (error) {
+                console.error("Failed to fetch dashboard stats:", error);
+            } finally {
+                setLoading(false);
+            }
+        };
+        fetchStats();
+    }, []);
+
     return (
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
             <Card>
@@ -12,9 +39,11 @@ export function StatsCards() {
                     <FileText className="h-4 w-4 text-primary" />
                 </CardHeader>
                 <CardContent>
-                    <div className="text-2xl font-bold">124</div>
+                    <div className="text-2xl font-bold">
+                        {loading ? <Loader2 className="h-5 w-5 animate-spin text-violet-600" /> : stats.totalDocuments}
+                    </div>
                     <p className="text-xs text-muted-foreground">
-                        +5% from last month
+                        Saved in workspace
                     </p>
                 </CardContent>
             </Card>
@@ -26,9 +55,11 @@ export function StatsCards() {
                     <AlertCircle className="h-4 w-4 text-slate-500" />
                 </CardHeader>
                 <CardContent>
-                    <div className="text-2xl font-bold">8</div>
+                    <div className="text-2xl font-bold">
+                        {loading ? <Loader2 className="h-5 w-5 animate-spin text-violet-600" /> : stats.pendingReviews}
+                    </div>
                     <p className="text-xs text-muted-foreground">
-                        2 documents need immediate attention
+                        {stats.pendingReviews === 1 ? "1 document needs attention" : `${stats.pendingReviews} documents need attention`}
                     </p>
                 </CardContent>
             </Card>
@@ -40,9 +71,11 @@ export function StatsCards() {
                     <Video className="h-4 w-4 text-purple-500" />
                 </CardHeader>
                 <CardContent>
-                    <div className="text-2xl font-bold">3</div>
+                    <div className="text-2xl font-bold">
+                        {loading ? <Loader2 className="h-5 w-5 animate-spin text-violet-600" /> : stats.activeConsultations}
+                    </div>
                     <p className="text-xs text-muted-foreground">
-                        Next one at 2:00 PM
+                        {stats.activeConsultations === 1 ? "1 active consultation" : `${stats.activeConsultations} active consultations`}
                     </p>
                 </CardContent>
             </Card>
@@ -54,9 +87,11 @@ export function StatsCards() {
                     <Zap className="h-4 w-4 text-yellow-500" />
                 </CardHeader>
                 <CardContent>
-                    <div className="text-2xl font-bold">450</div>
+                    <div className="text-2xl font-bold">
+                        {loading ? <Loader2 className="h-5 w-5 animate-spin text-violet-600" /> : stats.aiCredits}
+                    </div>
                     <p className="text-xs text-muted-foreground">
-                        Plan: Pro (Monthly)
+                        Plan: {stats.plan}
                     </p>
                 </CardContent>
             </Card>

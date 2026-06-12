@@ -75,7 +75,7 @@ export default function DocumentReviewPage() {
         setLogs(currentSteps.map(step => ({ msg: step, status: 'pending' })));
 
         try {
-            const user = JSON.parse(localStorage.getItem('user_data') || '{}');
+            const user = JSON.parse(localStorage.getItem('user_profile_data') || '{}');
             const userId = user._id || user.id || "PRO_USER_001";
             
             // Send file via FormData for real server-side parsing
@@ -99,17 +99,28 @@ export default function DocumentReviewPage() {
                     setState('COMPLETED');
                 }, 800);
             }
-        } catch (error) {
+        } catch (error: any) {
             console.error('Analysis failed:', error);
-            toast.error("AI Analysis failed. Showing simulated results.");
-            // Fallback to dummy data if API fails
-            setAnalysisData(null);
+            if (error.response?.status === 403 && error.response?.data?.error === 'limit_reached') {
+                toast.error('Subscription limit reached', {
+                    description: error.response.data.message || 'You have reached the monthly contract review limit for your plan.',
+                    action: {
+                        label: 'Upgrade Plan',
+                        onClick: () => window.location.href = '/user/billing'
+                    }
+                });
+                setState('UPLOAD');
+            } else {
+                toast.error("AI Analysis failed. Showing simulated results.");
+                // Fallback to dummy data if API fails
+                setAnalysisData(null);
 
-            // Allow manual entry into COMPLETED state for demo purposes even on failure
-            setTimeout(() => {
-                setViewMode('DETAILED');
-                setState('COMPLETED');
-            }, 1000);
+                // Allow manual entry into COMPLETED state for demo purposes even on failure
+                setTimeout(() => {
+                    setViewMode('DETAILED');
+                    setState('COMPLETED');
+                }, 1000);
+            }
         }
     };
 
