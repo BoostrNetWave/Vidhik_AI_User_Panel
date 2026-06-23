@@ -5,7 +5,7 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
 import { toast } from "sonner"
 import { authService } from "@/services/authService"
-import { Eye, EyeOff, Loader2 } from "lucide-react"
+import { Eye, EyeOff, Loader2, Mail, Lock, Scale, Star, ShieldCheck, Sparkles } from "lucide-react"
 import { Logo } from "@/components/brand/Logo"
 
 import { Button } from "@/components/ui/button"
@@ -85,118 +85,224 @@ export default function SignIn() {
     }
 
     return (
-        <div className="flex min-h-screen w-full items-center justify-center bg-gray-50 font-sans">
-            <div className="w-full max-w-md space-y-8 bg-white p-8 shadow-lg rounded-lg">
-                <div className="text-center">
-                    <div className="flex justify-center mb-8">
-                        <Logo className="h-16" />
-                    </div>
-                    <h2 className="text-3xl font-bold tracking-tight text-gray-900">Sign in to your account</h2>
-                    <p className="mt-2 text-sm text-gray-600">
-                        Welcome back! Please enter your details.
+        <div className="flex min-h-screen w-full font-sans bg-slate-50">
+            {/* Left - Branding Panel */}
+            <div className="hidden lg:flex lg:w-5/12 bg-gradient-to-br from-[#120F2E] via-[#1E113E] to-[#0A0718] relative overflow-hidden items-center justify-center p-12 select-none">
+                {/* Decorative glows */}
+                <div className="absolute top-0 left-0 right-0 h-[500px] bg-gradient-to-b from-violet-500/10 to-transparent blur-3xl pointer-events-none" />
+                <div className="absolute -bottom-40 -left-40 w-[400px] h-[400px] rounded-full bg-indigo-500/10 blur-[100px] pointer-events-none" />
+                <div className="absolute -top-40 -right-40 w-[400px] h-[400px] rounded-full bg-violet-500/10 blur-[100px] pointer-events-none" />
+                
+                {/* Dots grid pattern */}
+                <div 
+                    className="absolute inset-0 opacity-[0.03] pointer-events-none"
+                    style={{
+                        backgroundImage: `radial-gradient(circle at 1px 1px, white 1px, transparent 0)`,
+                        backgroundSize: '24px 24px'
+                    }}
+                />
+
+                <div className="relative z-10 text-white max-w-md">
+                    <Link to="/" className="inline-flex items-center gap-2 mb-10 transition-transform duration-300 hover:scale-105">
+                        <Scale className="h-8 w-8 text-violet-400" />
+                        <span className="font-display text-2xl font-bold tracking-tight">Vidhik <span className="text-violet-400">AI</span></span>
+                    </Link>
+                    
+                    <h2 className="font-display text-4xl font-extrabold mb-6 leading-tight">
+                        Your Trusted Partner in Legal Operations
+                    </h2>
+                    <p className="text-slate-300/85 text-sm leading-relaxed mb-10">
+                        Access AI-driven case research, document generation, and professional lawyer matching. Everything you need to navigate legal complexities with confidence.
                     </p>
+                    
+                    {/* Premium Card Testimonial */}
+                    <div className="bg-white/[0.03] backdrop-blur-md rounded-2xl p-6 border border-white/[0.08] shadow-[0_20px_50px_rgba(0,0,0,0.3)]">
+                        <div className="flex gap-1 mb-4">
+                            {[...Array(5)].map((_, i) => (
+                                <Star key={i} className="h-4 w-4 fill-amber-400 text-amber-400" />
+                            ))}
+                        </div>
+                        <p className="text-sm text-slate-200 leading-relaxed mb-4 italic">
+                            "Vidhik AI has completely transformed our approach to legal research. The document automation is incredibly accurate and fast."
+                        </p>
+                        <div className="flex items-center gap-3">
+                            <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-violet-500 to-indigo-500 flex items-center justify-center text-xs font-bold shadow-md">
+                                RK
+                            </div>
+                            <div>
+                                <p className="text-sm font-semibold text-white">Rajesh Kumar</p>
+                                <p className="text-xs text-slate-400">Corporate Legal Advisor</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Security Badge */}
+                    <div className="flex items-center gap-6 mt-10 text-slate-400/80 text-xs">
+                        <div className="flex items-center gap-1.5">
+                            <ShieldCheck className="h-4 w-4 text-emerald-400" />
+                            <span>AES-256 Bit Encrypted</span>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                            <ShieldCheck className="h-4 w-4 text-emerald-400" />
+                            <span>ISO 27001 Certified</span>
+                        </div>
+                    </div>
                 </div>
+            </div>
 
-                <Form {...form}>
-                    <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-                        <FormField
-                            control={form.control}
-                            name="email"
-                            render={({ field }) => (
-                                <FormItem>
-                                    <FormLabel>Email Address</FormLabel>
-                                    <FormControl>
-                                        <Input placeholder="name@company.com" autoComplete="off" {...field} />
-                                    </FormControl>
-                                    <FormMessage />
-                                </FormItem>
-                            )}
-                        />
+            {/* Right - Form Container */}
+            <div className="flex-1 flex items-center justify-center p-6 sm:p-12 md:p-16 bg-[#FAFAFC] relative overflow-hidden">
+                {/* Decorative glows on the right panel */}
+                <div className="absolute top-0 right-0 -z-10 w-[300px] h-[300px] rounded-full bg-violet-200/30 blur-3xl pointer-events-none" />
+                <div className="absolute bottom-0 left-0 -z-10 w-[300px] h-[300px] rounded-full bg-indigo-100/30 blur-3xl pointer-events-none" />
+                
+                {/* Dots grid pattern for Right Panel */}
+                <div 
+                    className="absolute inset-0 opacity-[0.015] pointer-events-none"
+                    style={{
+                        backgroundImage: `radial-gradient(circle at 1px 1px, #7C3AED 1px, transparent 0)`,
+                        backgroundSize: '20px 20px'
+                    }}
+                />
 
-                        <FormField
-                            control={form.control}
-                            name="password"
-                            render={({ field }) => (
-                                <FormItem>
-                                    <FormLabel>Password</FormLabel>
-                                    <div className="relative">
-                                        <FormControl>
-                                            <Input
-                                                type={showPassword ? "text" : "password"}
-                                                placeholder="••••••••"
-                                                autoComplete="off"
-                                                {...field}
-                                            />
-                                        </FormControl>
-                                        <Button
-                                            type="button"
-                                            variant="ghost"
-                                            size="icon"
-                                            className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
-                                            onClick={() => setShowPassword(!showPassword)}
-                                        >
-                                            {showPassword ? (
-                                                <EyeOff className="h-4 w-4 text-gray-500" />
-                                            ) : (
-                                                <Eye className="h-4 w-4 text-gray-500" />
-                                            )}
-                                            <span className="sr-only">
-                                                {showPassword ? "Hide password" : "Show password"}
-                                            </span>
-                                        </Button>
-                                    </div>
-                                    <FormMessage />
-                                </FormItem>
-                            )}
-                        />
+                <div className="w-full max-w-md">
+                    {/* Small Logo for mobile view */}
+                    <div className="text-center mb-8 lg:hidden">
+                        <Link to="/" className="inline-flex items-center gap-2">
+                            <Scale className="h-7 w-7 text-violet-600" />
+                            <span className="font-display text-xl font-bold tracking-tight text-slate-900">
+                                Vidhik <span className="text-violet-600">AI</span>
+                            </span>
+                        </Link>
+                    </div>
 
-                        <div className="flex items-center justify-between">
-                            <FormField
-                                control={form.control}
-                                name="rememberMe"
-                                render={({ field }) => (
-                                    <FormItem className="flex flex-row items-start space-x-3 space-y-0 text-left">
-                                        <FormControl>
-                                            <Checkbox
-                                                checked={field.value}
-                                                onCheckedChange={field.onChange}
-                                            />
-                                        </FormControl>
-                                        <div className="space-y-1 leading-none">
-                                            <FormLabel className="font-normal text-gray-500">
-                                                Remember me
-                                            </FormLabel>
-                                        </div>
-                                    </FormItem>
-                                )}
-                            />
-                            <Link
-                                to="/forgot-password"
-                                className="text-sm font-semibold text-primary hover:text-primary/80"
-                            >
-                                Forgot password?
-                            </Link>
+                    <div className="bg-white/80 backdrop-blur-md border border-slate-100 shadow-[0_20px_50px_-12px_rgba(124,58,237,0.08)] rounded-2xl p-8 sm:p-10 w-full relative">
+                        <div className="text-center mb-8">
+                            <h2 className="text-3xl font-extrabold tracking-tight text-slate-900 font-display">
+                                Welcome Back
+                            </h2>
+                            <p className="mt-2.5 text-sm text-slate-500">
+                                Sign in to access your client portal dashboard.
+                            </p>
                         </div>
 
-                        <Button type="submit" disabled={isLoading} className="w-full bg-primary hover:bg-primary/90 text-white h-11 flex items-center justify-center">
-                            {isLoading ? (
-                                <>
-                                    <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                                    Logging in...
-                                </>
-                            ) : (
-                                "Sign in"
-                            )}
-                        </Button>
-                    </form>
-                </Form>
+                        <Form {...form}>
+                            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-5">
+                                <FormField
+                                    control={form.control}
+                                    name="email"
+                                    render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel className="text-xs font-semibold uppercase tracking-wider text-slate-500">Email Address</FormLabel>
+                                            <FormControl>
+                                                <div className="relative">
+                                                    <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4.5 w-4.5 text-slate-400" />
+                                                    <Input 
+                                                        placeholder="name@company.com" 
+                                                        autoComplete="off" 
+                                                        className="pl-10 h-11 bg-slate-50/50 border-slate-200 focus:border-violet-500 focus:ring-violet-500/20 focus-visible:ring-violet-500/20 focus-visible:border-violet-500 transition-all rounded-lg"
+                                                        {...field} 
+                                                    />
+                                                </div>
+                                            </FormControl>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
 
+                                <FormField
+                                    control={form.control}
+                                    name="password"
+                                    render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel className="text-xs font-semibold uppercase tracking-wider text-slate-500">Password</FormLabel>
+                                            <div className="relative">
+                                                <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4.5 w-4.5 text-slate-400" />
+                                                <FormControl>
+                                                    <Input
+                                                        type={showPassword ? "text" : "password"}
+                                                        placeholder="••••••••"
+                                                        autoComplete="off"
+                                                        className="pl-10 pr-10 h-11 bg-slate-50/50 border-slate-200 focus:border-violet-500 focus:ring-violet-500/20 focus-visible:ring-violet-500/20 focus-visible:border-violet-500 transition-all rounded-lg"
+                                                        {...field}
+                                                    />
+                                                </FormControl>
+                                                <Button
+                                                    type="button"
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    className="absolute right-1 top-1/2 -translate-y-1/2 h-8 w-8 hover:bg-transparent text-slate-400 hover:text-slate-600 transition-colors"
+                                                    onClick={() => setShowPassword(!showPassword)}
+                                                >
+                                                    {showPassword ? (
+                                                        <EyeOff className="h-4 w-4" />
+                                                    ) : (
+                                                        <Eye className="h-4 w-4" />
+                                                    )}
+                                                    <span className="sr-only">
+                                                        {showPassword ? "Hide password" : "Show password"}
+                                                    </span>
+                                                </Button>
+                                            </div>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
 
-                <div className="text-center text-sm text-gray-500">
-                    Don't have an account?{" "}
-                    <Link to="/signup" className="font-semibold text-primary hover:text-primary/80">
-                        Sign up
-                    </Link>
+                                <div className="flex items-center justify-between">
+                                    <FormField
+                                        control={form.control}
+                                        name="rememberMe"
+                                        render={({ field }) => (
+                                            <FormItem className="flex flex-row items-center space-x-2 space-y-0">
+                                                <FormControl>
+                                                    <Checkbox
+                                                        checked={field.value}
+                                                        onCheckedChange={field.onChange}
+                                                        className="border-slate-300 text-violet-600 focus:ring-violet-500"
+                                                    />
+                                                </FormControl>
+                                                <FormLabel className="text-xs font-semibold text-slate-500 cursor-pointer select-none">
+                                                    Remember me
+                                                </FormLabel>
+                                            </FormItem>
+                                        )}
+                                    />
+                                    <Link
+                                        to="/forgot-password"
+                                        className="text-xs font-semibold text-violet-600 hover:text-violet-700 transition-colors"
+                                    >
+                                        Forgot password?
+                                    </Link>
+                                </div>
+
+                                <Button 
+                                    type="submit" 
+                                    disabled={isLoading} 
+                                    className="w-full bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 text-white font-semibold h-11 rounded-lg flex items-center justify-center transition-all duration-300 shadow-[0_10px_20px_-5px_rgba(124,58,237,0.3)] hover:shadow-[0_15px_25px_-5px_rgba(124,58,237,0.4)] hover:-translate-y-0.5 active:translate-y-0 disabled:opacity-50 disabled:pointer-events-none"
+                                >
+                                    {isLoading ? (
+                                        <>
+                                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                            Signing in...
+                                        </>
+                                    ) : (
+                                        <span className="flex items-center justify-center gap-1.5">
+                                            <Sparkles className="h-4 w-4" />
+                                            Sign in
+                                        </span>
+                                    )}
+                                </Button>
+                            </form>
+                        </Form>
+
+                        <div className="mt-8 text-center text-sm text-slate-500 border-t border-slate-100 pt-6">
+                            Don't have an account?{" "}
+                            <Link to="/signup" className="font-semibold text-violet-600 hover:text-violet-700 transition-colors">
+                                Sign up
+                            </Link>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>

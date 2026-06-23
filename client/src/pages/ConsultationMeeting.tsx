@@ -753,7 +753,7 @@ export default function ConsultationMeeting() {
                                                     The lawyer has submitted the official consultation briefing summary. It is now securely archived in the registry.
                                                 </p>
                                                 <a
-                                                    href={`http://localhost:3000/lawyer${caseData.meetingSummaryUrl}`}
+                                                    href={`/lawyer${caseData.meetingSummaryUrl}`}
                                                     target="_blank"
                                                     rel="noreferrer"
                                                     className="w-full py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 transition-all shadow-sm"
@@ -804,7 +804,7 @@ export default function ConsultationMeeting() {
                                                 </div>
                                             </div>
                                             <a
-                                                href={`http://localhost:3000/lawyer${caseData.meetingSummaryUrl}`}
+                                                href={`/lawyer${caseData.meetingSummaryUrl}`}
                                                 target="_blank"
                                                 rel="noreferrer"
                                                 className="h-8 w-8 rounded-lg bg-white border border-violet-100 flex items-center justify-center hover:bg-violet-50 text-violet-750 hover:text-violet-700 shrink-0 transition-colors"
@@ -832,7 +832,7 @@ export default function ConsultationMeeting() {
                                                     </div>
                                                 </div>
                                                 <a
-                                                    href={`http://localhost:3000/lawyer${doc.url}`}
+                                                    href={`/lawyer${doc.url}`}
                                                     target="_blank"
                                                     rel="noreferrer"
                                                     className="h-8 w-8 rounded-lg bg-white border border-slate-200 flex items-center justify-center hover:bg-slate-50 text-slate-500 hover:text-slate-900 shrink-0 transition-colors"

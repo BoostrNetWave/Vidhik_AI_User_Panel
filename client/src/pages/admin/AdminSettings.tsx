@@ -1542,7 +1542,7 @@ export default function AdminSettings() {
                                                         return (
                                                             <div key={dIdx} className="space-y-1">
                                                                 <a
-                                                                                                    href={`http://localhost:3000/lawyer${doc.url}`}
+                                                                                                    href={`/lawyer${doc.url}`}
                                                                                                     target="_blank"
                                                                                                     rel="noreferrer"
                                                                                                     className="text-xs text-blue-600 font-bold hover:underline inline-flex items-center gap-1.5"
@@ -1554,13 +1554,13 @@ export default function AdminSettings() {
                                                                 {isImg && (
                                                                     <div className="mt-1 rounded-lg overflow-hidden border border-slate-200 bg-slate-50 w-24 h-16 shadow-sm relative group">
                                                                         <img 
-                                                                            src={`http://localhost:3000/lawyer${doc.url}`} 
+                                                                            src={`/lawyer${doc.url}`} 
                                                                             alt={doc.name}
                                                                             className="h-full w-full object-cover"
                                                                         />
                                                                         <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                                                                             <a 
-                                                                                href={`http://localhost:3000/lawyer${doc.url}`}
+                                                                                href={`/lawyer${doc.url}`}
                                                                                 target="_blank"
                                                                                 rel="noreferrer"
                                                                                 className="text-[8px] bg-white text-slate-900 px-1 py-0.5 rounded shadow-sm font-bold"
@@ -1641,7 +1641,7 @@ export default function AdminSettings() {
                                         <td className="px-6 py-4">
                                             {c.meetingSummaryUrl ? (
                                                 <a 
-                                                    href={`http://localhost:3000/lawyer${c.meetingSummaryUrl}`}
+                                                    href={`/lawyer${c.meetingSummaryUrl}`}
                                                     target="_blank" 
                                                     rel="noreferrer"
                                                     className="inline-flex items-center gap-1.5 text-xs text-purple-600 hover:text-purple-800 font-bold hover:underline"
